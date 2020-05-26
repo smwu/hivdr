@@ -26,7 +26,8 @@ ui <- fluidPage(
              sidebarLayout(
                
                # Sidebar options to specify sample size calculation
-               sidebarPanel(sliderInput("prev", "Prevalence (%)", min=0, max=50, value=5, step=0.5),
+               sidebarPanel(h4("Assumed Parameter Values"),
+                            sliderInput("prev", "Prevalence (%)", min=0, max=50, value=5, step=0.5),
                             selectInput("precision", "Select Precision Type", c("Absolute Precision", "Relative Precision")),
                             uiOutput("prec"),
                             sliderInput("N", "Population Size", min=300, max=20000, value=10000, step=100),
@@ -59,7 +60,8 @@ ui <- fluidPage(
              sidebarLayout(
                
                # Sidebar options to specify sample size calculation
-               sidebarPanel(sliderInput("prev_O", "Prevalence (%)", min=0, max=50, value=25, step=0.5),
+               sidebarPanel(h4("Assumed Parameter Values"),
+                            sliderInput("prev_O", "Prevalence (%)", min=0, max=50, value=25, step=0.5),
                             selectInput("precision_O", "Select Precision Type", c("Relative Precision", "Absolute Precision")),
                             uiOutput("prec_O"),
                             sliderInput("N_O", "Population Size", min=300, max=20000, value=20000, step=100),
@@ -314,7 +316,7 @@ server <- function(input, output) {
       ggtitle("Plot of Prevalence with Confidence Intervals") +
       geom_point(data=g2, color="red") +
       geom_pointrange(data=g2, color="red", ymin = g2$lower, ymax = g2$upper, size=0.7) +
-      geom_text(x=0.475, y=df2$prev[1] - CI_O(), label=paste0("\u00B1", CI()), color="red", size=5)
+      geom_text(x=0.475, y=df2$prev[1] - CI_O(), label=paste0("\u00B1", CI_O()), color="red", size=5)
   })
   
 }

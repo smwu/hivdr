@@ -27,13 +27,13 @@ ui <- fluidPage(
                
                # Sidebar options to specify sample size calculation
                sidebarPanel(h4("Assumed Parameter Values"),
-                            sliderInput("prev", "Prevalence (%)", min=0, max=50, value=5, step=0.5),
+                            sliderInput("prev", "Prevalence (%)", min=0, max=30, value=5, step=0.5),
                             selectInput("precision", "Select Precision Type", c("Absolute Precision", "Relative Precision")),
                             uiOutput("prec"),
                             sliderInput("N", "Population Size", min=300, max=20000, value=10000, step=100),
-                            sliderInput("labFail", "Genotyping Failure (%)", min=0, max=50, value=30, step=5),
                             selectInput("alpha", "Significance Level", choices = c(0.1, 0.05, 0.01), selected=0.05),
-                            sliderInput("infl", "Inflation Factor (%)", min=0, max=50, value=10, step=5)),
+                            sliderInput("labFail", "Genotyping Failure (%)", min=0, max=50, value=30, step=5)),
+                            #sliderInput("infl", "Inflation Factor (%)", min=0, max=50, value=10, step=5)),
                
                # Main panel display consisting of two tables and two plots
                mainPanel(
@@ -44,8 +44,18 @@ ui <- fluidPage(
                  ),
                  br(),
                  fluidRow(splitLayout(cellWidths = c("50%", "50%"),
-                                      plotOutput("plot1"),
-                                      plotOutput("plot2")))
+                                      plotOutput("plot1", hover = "plot1_hover"),
+                                      plotOutput("plot2", hover = "plot2_hover"))),
+                 br(),
+                 fluidRow(splitLayout(cellWidths = c("50%", "50%"),
+                                      verbatimTextOutput("info1"),
+                                      verbatimTextOutput("info2"))),
+                 br(),        
+                 fluidRow(splitLayout(cellWidths = c("50%", "50%"),
+                                      textOutput("text_plot1"),
+                                      textOutput("text_plot2"), 
+                                      tags$style(type="text/css", "#text_plot1 {white-space: pre-wrap;}"),
+                                      tags$style(type="text/css", "#text_plot2 {white-space: pre-wrap;}")))
                )
 
              )
@@ -65,9 +75,9 @@ ui <- fluidPage(
                             selectInput("precision_O", "Select Precision Type", c("Relative Precision", "Absolute Precision")),
                             uiOutput("prec_O"),
                             sliderInput("N_O", "Population Size", min=300, max=20000, value=20000, step=100),
-                            sliderInput("labFail_O", "Genotyping Failure (%)", min=0, max=50, value=30, step=5),
                             selectInput("alpha_O", "Significance Level", choices = c(0.1, 0.05, 0.01), selected=0.05),
-                            sliderInput("infl_O", "Inflation Factor (%)", min=0, max=50, value=5, step=5)),
+                            sliderInput("labFail_O", "Genotyping Failure (%)", min=0, max=50, value=30, step=5)),
+                            #sliderInput("infl_O", "Inflation Factor (%)", min=0, max=50, value=5, step=5)),
                
                # Main panel display consisting of two tables and two plots
                mainPanel(
@@ -78,8 +88,18 @@ ui <- fluidPage(
                  ),
                  br(),
                  fluidRow(splitLayout(cellWidths = c("50%", "50%"),
-                                      plotOutput("plot1_O"),
-                                      plotOutput("plot2_O")))
+                                      plotOutput("plot1_O", hover="plot1_O_hover"),
+                                      plotOutput("plot2_O", hover="plot2_O_hover"))),
+                 br(),
+                 fluidRow(splitLayout(cellWidths = c("50%", "50%"),
+                                      verbatimTextOutput("info1_O"),
+                                      verbatimTextOutput("info2_O"))),
+                 br(),
+                 fluidRow(splitLayout(cellWidths = c("50%", "50%"),
+                                      textOutput("text_plot1_O"),
+                                      textOutput("text_plot2_O"), 
+                                      tags$style(type="text/css", "#text_plot1_O {white-space: pre-wrap;}"),
+                                      tags$style(type="text/css", "#text_plot2_O {white-space: pre-wrap;}")))
                )
              )
     )
@@ -111,20 +131,37 @@ server <- function(input, output) {
   prec <- reactive({input$prec/100})
   alpha <- reactive({as.numeric(input$alpha)})
   labFail <- reactive({input$labFail/100})
-  infl <- reactive({input$infl/100})
+  #infl <- reactive({input$infl/100})
   CI <- reactive({ifelse(input$precision == "Relative Precision",
                          prec()*prev(), prec())})
   
   # Function to calculate sample sizes using FPC and Wald-type intervals
-  calcSampleSize <- function(alpha, prev, N, CI, labFail, infl) {
+  # No inflation factor
+  calcSampleSize <- function(alpha, prev, N, CI, labFail) {
     nEff <- qnorm(1-alpha/2)^2*prev*(1-prev)*N / 
       (N*CI^2 + (prev*(1-prev)*qnorm(1-alpha/2)^2))
-    n <- nEff/(1-labFail)*(1+infl)
+    n <- nEff/(1-labFail)
     return(ceiling(n))
   }
+  
+  # Function to calculate confidence interval limits given designed sample size, 
+  # using FPC and Wald-type intervals
+  calcCI <- function(alpha, prev, n, N, labFail) {
+    
+    # obtain neff from n
+    neff <- n*(1-labFail)
+    
+    # margin of error
+    margin <- qnorm(1-alpha/2)*sqrt((prev*(1-prev)/neff) * (1-(neff/N)))
+    
+    # return lower and upper confidence bounds
+    # return(c(prev - margin, prev + margin, margin))
+    return(margin)
+  }
+  
   # Calculate sample size
   sampleSize <- reactive({calcSampleSize(alpha(), prev(), input$N, CI(), 
-                                         labFail(), infl())})
+                                         labFail())})
   
   
   ### Output tables
@@ -135,14 +172,14 @@ server <- function(input, output) {
                     input$precision,
                     "Population Size", 
                     "Laboratory Failure Rate",
-                    "Significance Level",
-                    "Inflation Factor"),
+                    "Significance Level"),
+                    # "Inflation Factor"),
       Value = as.character(c(paste0(input$prev, "%"),
                              paste0(input$prec, "%"),
                              input$N,
                              paste0(input$labFail, "%"),
-                             input$alpha,
-                             paste0(input$infl, "%"))),
+                             input$alpha)),
+                             # paste0(input$infl, "%"))),
       stringsAsFactors = FALSE)
   })
   
@@ -165,7 +202,7 @@ server <- function(input, output) {
     pop = seq(300, 20000, by=100)
     df1 <- data.frame(
       pop = pop,
-      sampSize = calcSampleSize(alpha(), prev(), pop, CI(), labFail(), infl())
+      sampSize = calcSampleSize(alpha(), prev(), pop, CI(), labFail())
     )
     g1 <- data.frame(pop = input$N, sampSize = sampleSize())
     ggplot(data = df1, aes(x = pop, y = sampSize)) +
@@ -173,24 +210,28 @@ server <- function(input, output) {
       geom_point() + ggtitle("Plot of Sample Size vs. Population Size") +
       geom_point(data=g1, color="red", size=3) +
       geom_text(x=17500, y=df1$sampSize[1], label=paste0("(", g1$pop,", ", g1$sampSize, ")"),
-                color = "red", size=5)
+                color = "red", size=5) + 
+      theme(axis.text=element_text(size=12))
     
   })
   
   # Plot of Estimated Prevalence with Confidence Bands
   output$plot2 <- renderPlot({
-    prevs <- seq(0.01, 0.5, by=0.01)
+    prevs <- seq(0.01, 0.3, by=0.01)
     lower <- numeric(length(prevs))
     upper <- numeric(length(prevs))
     
     for (i in 1:length(prevs)) {
-      if (input$precision == "Relative Precision") {
-        lower[i] <- prevs[i] - prevs[i]*prec()
-        upper[i] <- prevs[i] + prevs[i]*prec()
-      } else {
-        lower[i] <- prevs[i] - prec()
-        upper[i] <- prevs[i] + prec()
-      }  
+      # if (input$precision == "Relative Precision") {
+      #   lower[i] <- prevs[i] - prevs[i]*prec()
+      #   upper[i] <- prevs[i] + prevs[i]*prec()
+      # } else {
+      #   lower[i] <- prevs[i] - prec()
+      #   upper[i] <- prevs[i] + prec()
+      # }  
+      margin <- calcCI(alpha(), prevs[i], sampleSize(), input$N, labFail())
+      lower[i] <- prevs[i] - margin
+      upper[i] <- prevs[i] + margin
     }
     df2 <- data.frame(
       prev = prevs,
@@ -203,13 +244,22 @@ server <- function(input, output) {
       ylim(df2$prev[1] - CI(), df2$prev[length(prevs)] + CI()) +
       geom_pointrange(data = df2, ymin = df2$lower, ymax = df2$upper) +
       xlab("Prevalence") + ylab("Prevalence") +
-      ggtitle("Plot of Prevalence with Confidence Intervals") +
+      ggtitle("Plot of Confidence Interval for Prevalence") +
       geom_point(data=g2, color="red") +
       geom_pointrange(data=g2, color="red", ymin = g2$lower, ymax = g2$upper, size=0.7) +
-      geom_text(x=0.475, y=df2$prev[1]-CI(), label=paste0("\u00B1", CI()), color="red", size=5)
+      geom_text(x=0.275, y=df2$prev[1]-CI(), label=paste0("\u00B1", CI()), color="red", size=5) + 
+      theme(axis.text=element_text(size=12))
   })
   
-  
+  # Text output for plot captions
+  output$text_plot1 <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
+  output$text_plot2 <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+  output$info1 <- renderText({
+    paste0("x=", round(as.numeric(input$plot1_hover$x),0), ", y=", round(as.numeric(input$plot1_hover$y),0))
+  })
+  output$info2 <- renderText({
+    paste0("x=", round(as.numeric(input$plot2_hover$x),3), ", y=", round(as.numeric(input$plot2_hover$y),3))
+  })
 
   # ====================================
   # Server code for overall calculations
@@ -229,13 +279,13 @@ server <- function(input, output) {
   prec_O <- reactive({input$prec_O/100})
   alpha_O <- reactive({as.numeric(input$alpha_O)})
   labFail_O <- reactive({input$labFail_O/100})
-  infl_O <- reactive({input$infl_O/100})
+  # infl_O <- reactive({input$infl_O/100})
   CI_O <- reactive({ifelse(input$precision_O == "Relative Precision",
                            prec_O()*prev_O(), prec_O())})
   
   # Calculate sample sizes using FPC and Wald-type intervals
   sampleSize_O <- reactive({calcSampleSize(alpha_O(), prev_O(), input$N_O, 
-                                           CI_O(), labFail_O(), infl_O())})
+                                           CI_O(), labFail_O())})
   
   ### Output tables
   # Table of user-specified parameter values
@@ -245,14 +295,14 @@ server <- function(input, output) {
                     input$precision_O,
                     "Population Size", 
                     "Laboratory Failure Rate",
-                    "Significance Level",
-                    "Inflation Factor"),
+                    "Significance Level"),
+                   #  "Inflation Factor"),
       Value = as.character(c(paste0(input$prev_O, "%"),
                              paste0(input$prec_O, "%"),
                              input$N_O,
                              paste0(input$labFail_O, "%"),
-                             input$alpha_O,
-                             paste0(input$infl_O, "%"))),
+                             input$alpha_O)),
+                             #paste0(input$infl_O, "%"))),
       stringsAsFactors = FALSE)
   })
   
@@ -275,7 +325,7 @@ server <- function(input, output) {
     pop = seq(300, 20000, by=100)
     df1 <- data.frame(
       pop = pop,
-      sampSize = calcSampleSize(alpha_O(), prev_O(), pop, CI_O(), labFail_O(), infl_O())
+      sampSize = calcSampleSize(alpha_O(), prev_O(), pop, CI_O(), labFail_O())
     )
     g1 <- data.frame(pop = input$N_O, sampSize = sampleSize_O())
     ggplot(data = df1, aes(x = pop, y = sampSize)) +
@@ -283,7 +333,8 @@ server <- function(input, output) {
       geom_point() + ggtitle("Plot of Sample Size vs. Population Size") +
       geom_point(data=g1, color="red", size=3) +
       geom_text(x=17500, y=df1$sampSize[1], label=paste0("(", g1$pop,", ", g1$sampSize, ")"),
-                color = "red", size=5)
+                color = "red", size=5) + 
+      theme(axis.text=element_text(size=12))
     
   })
   
@@ -294,13 +345,16 @@ server <- function(input, output) {
     upper <- numeric(length(prevs))
     
     for (i in 1:length(prevs)) {
-      if (input$precision_O == "Relative Precision") {
-        lower[i] <- prevs[i] - prevs[i]*prec_O()
-        upper[i] <- prevs[i] + prevs[i]*prec_O()
-      } else {
-        lower[i] <- prevs[i] - prec_O()
-        upper[i] <- prevs[i] + prec_O()
-      }  
+      # if (input$precision_O == "Relative Precision") {
+      #   lower[i] <- prevs[i] - prevs[i]*prec_O()
+      #   upper[i] <- prevs[i] + prevs[i]*prec_O()
+      # } else {
+      #   lower[i] <- prevs[i] - prec_O()
+      #   upper[i] <- prevs[i] + prec_O()
+      # }  
+      margin <- calcCI(alpha_O(), prevs[i], sampleSize_O(), input$N_O, labFail_O())
+      lower[i] <- prevs[i] - margin
+      upper[i] <- prevs[i] + margin
     }
     df2 <- data.frame(
       prev = prevs,
@@ -313,12 +367,23 @@ server <- function(input, output) {
       ylim(df2$prev[1] - CI_O(), df2$prev[length(prevs)] + CI_O()) +
       geom_pointrange(data = df2, ymin = df2$lower, ymax = df2$upper) +
       xlab("Prevalence") + ylab("Prevalence") +
-      ggtitle("Plot of Prevalence with Confidence Intervals") +
+      ggtitle("Plot of Confidence Interval for Prevalence") +
       geom_point(data=g2, color="red") +
       geom_pointrange(data=g2, color="red", ymin = g2$lower, ymax = g2$upper, size=0.7) +
-      geom_text(x=0.475, y=df2$prev[1] - CI_O(), label=paste0("\u00B1", CI_O()), color="red", size=5)
+      geom_text(x=0.475, y=df2$prev[1] - CI_O(), label=paste0("\u00B1", CI_O()), color="red", size=5) + 
+      theme(axis.text=element_text(size=12))
   })
-  
+
+  # Text output for plot captions
+  output$text_plot1_O <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
+  output$text_plot2_O <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+  output$info1_O <- renderText({
+    paste0("x=", round(as.numeric(input$plot1_O_hover$x),0), ", y=", round(as.numeric(input$plot1_O_hover$y),0))
+  })
+  output$info2_O <- renderText({
+    paste0("x=", round(as.numeric(input$plot2_O_hover$x),3), ", y=", round(as.numeric(input$plot2_O_hover$y),3))
+  })
+    
 }
 
 
@@ -424,3 +489,12 @@ shinyApp(ui, server)
 #   fluidRow(column(6, plotOutput("plot1")),
 #            column(6, plotOutput("plot2")))
 # )
+
+
+# # Function to calculate sample sizes using FPC and Wald-type intervals
+# calcSampleSize <- function(alpha, prev, N, CI, labFail, infl) {
+#   nEff <- qnorm(1-alpha/2)^2*prev*(1-prev)*N / 
+#     (N*CI^2 + (prev*(1-prev)*qnorm(1-alpha/2)^2))
+#   n <- nEff/(1-labFail)*(1+infl)
+#   return(ceiling(n))
+# }

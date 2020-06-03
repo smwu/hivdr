@@ -32,7 +32,7 @@ ui <- fluidPage(
                             uiOutput("prec"),
                             sliderInput("N", "Population Size", min=300, max=20000, value=10000, step=100),
                             selectInput("alpha", "Significance Level", choices = c(0.1, 0.05, 0.01), selected=0.05),
-                            sliderInput("labFail", "Genotyping Failure (%)", min=0, max=50, value=30, step=5)),
+                            sliderInput("labFail", "Genotyping Failure (%)", min=0, max=50, value=0, step=5)),
                             #sliderInput("infl", "Inflation Factor (%)", min=0, max=50, value=10, step=5)),
                
                # Main panel display consisting of two tables and two plots
@@ -71,12 +71,12 @@ ui <- fluidPage(
                
                # Sidebar options to specify sample size calculation
                sidebarPanel(h4("Assumed Parameter Values"),
-                            sliderInput("prev_O", "Prevalence (%)", min=0, max=50, value=25, step=0.5),
-                            selectInput("precision_O", "Select Precision Type", c("Relative Precision", "Absolute Precision")),
+                            sliderInput("prev_O", "Prevalence (%)", min=0, max=50, value=50, step=0.5),
+                            selectInput("precision_O", "Select Precision Type", c("Absolute Precision", "Relative Precision")),
                             uiOutput("prec_O"),
                             sliderInput("N_O", "Population Size", min=300, max=20000, value=20000, step=100),
                             selectInput("alpha_O", "Significance Level", choices = c(0.1, 0.05, 0.01), selected=0.05),
-                            sliderInput("labFail_O", "Genotyping Failure (%)", min=0, max=50, value=30, step=5)),
+                            sliderInput("labFail_O", "Genotyping Failure (%)", min=0, max=50, value=0, step=5)),
                             #sliderInput("infl_O", "Inflation Factor (%)", min=0, max=50, value=5, step=5)),
                
                # Main panel display consisting of two tables and two plots
@@ -123,7 +123,7 @@ server <- function(input, output) {
            "Relative Precision" = sliderInput("prec", "Relative Precision (%)", 
                                                   min=10, max=100, value=30, step=5),
            "Absolute Precision" = sliderInput("prec", "Absolute Precision (%)", 
-                                                  min=0.5, max=30, value=3, step=0.25))
+                                                  min=0.5, max=30, value=2, step=0.25))
   })
   
   # Define reactive variables
@@ -162,6 +162,39 @@ server <- function(input, output) {
   # Calculate sample size
   sampleSize <- reactive({calcSampleSize(alpha(), prev(), input$N, CI(), 
                                          labFail())})
+  
+  # Function to generate hovering text output for plot captions
+  hoverValue <- function(hover, x, y, captions, tolerance, excess) {
+    if (!is.null(hover)) {
+      x0 <- hover$x # x coordinate in user space
+      y0 <- hover$y # y coordinate in user space
+      xrange <- hover$domain$right - hover$domain$left
+      yrange <- hover$domain$top - hover$domain$bottom
+      
+      # find the index of the observation closest in scaled 1-norm to the mouse
+      # return the corresponding index if close enough
+      if (excess == "x = , y = ") {
+        dist <- abs(x0 - x) / xrange + abs(y0 - y) / yrange
+        i <- which.min(dist)
+        if (dist[i] < tolerance) {
+          paste0("x = ", round(x[i],0), ", y = ", round(y[i],0))
+        } else {
+          paste0(excess)
+        }
+      } else { # plot == "two"
+        dist <- abs(x0 - x) / xrange
+        i <- which.min(dist)
+        if (dist[i] < tolerance) {
+          paste0("CI = ",captions[i])
+        } else {
+          paste0(excess)
+        }
+      }
+      
+    } else {
+      paste0(excess)
+    }
+  }
   
   
   ### Output tables
@@ -214,7 +247,7 @@ server <- function(input, output) {
       theme(axis.text=element_text(size=12))
     
   })
-  
+    
   # Plot of Estimated Prevalence with Confidence Bands
   output$plot2 <- renderPlot({
     prevs <- seq(0.01, 0.3, by=0.01)
@@ -222,13 +255,6 @@ server <- function(input, output) {
     upper <- numeric(length(prevs))
     
     for (i in 1:length(prevs)) {
-      # if (input$precision == "Relative Precision") {
-      #   lower[i] <- prevs[i] - prevs[i]*prec()
-      #   upper[i] <- prevs[i] + prevs[i]*prec()
-      # } else {
-      #   lower[i] <- prevs[i] - prec()
-      #   upper[i] <- prevs[i] + prec()
-      # }  
       margin <- calcCI(alpha(), prevs[i], sampleSize(), input$N, labFail())
       lower[i] <- prevs[i] - margin
       upper[i] <- prevs[i] + margin
@@ -251,15 +277,30 @@ server <- function(input, output) {
       theme(axis.text=element_text(size=12))
   })
   
-  # Text output for plot captions
-  output$text_plot1 <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
-  output$text_plot2 <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+  # Hovering text for plots
   output$info1 <- renderText({
-    paste0("x=", round(as.numeric(input$plot1_hover$x),0), ", y=", round(as.numeric(input$plot1_hover$y),0))
+    pop = seq(300, 20000, by=100)
+    sampSize = calcSampleSize(alpha(), prev(), pop, CI(), labFail())
+    hoverValue(input$plot1_hover, pop, sampSize, captions = "", tolerance=0.05, excess = "x = , y = ")
   })
   output$info2 <- renderText({
-    paste0("x=", round(as.numeric(input$plot2_hover$x),3), ", y=", round(as.numeric(input$plot2_hover$y),3))
+    prevs <- seq(0.01, 0.3, by=0.01)
+    lower <- numeric(length(prevs))
+    upper <- numeric(length(prevs))
+    
+    for (i in 1:length(prevs)) {
+      margin <- calcCI(alpha(), prevs[i], sampleSize(), input$N, labFail())
+      lower[i] <- prevs[i] - margin
+      upper[i] <- prevs[i] + margin
+    }
+    hoverValue(input$plot2_hover, prevs, prevs, captions = paste0("\u00B1",round((upper - lower)/2,3)), tolerance=0.03, excess = "CI = ")
   })
+  
+  # Caption text for plots
+  output$text_plot1 <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
+  output$text_plot2 <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+  
+  
 
   # ====================================
   # Server code for overall calculations
@@ -268,10 +309,10 @@ server <- function(input, output) {
   # User-specified precision type
   output$prec_O <- renderUI({
     switch(input$precision_O, 
-           "Relative Precision" = sliderInput("prec_O", "Relative Precision (%)", 
-                                              min=10, max=100, value=35, step=5),
            "Absolute Precision" = sliderInput("prec_O", "Absolute Precision (%)", 
-                                              min=0.5, max=30, value=3, step=0.25))
+                                              min=0.5, max=30, value=6, step=0.25),
+           "Relative Precision" = sliderInput("prec_O", "Relative Precision (%)", 
+                                              min=10, max=100, value=35, step=5))
   })
   
   # Define reactive variables
@@ -345,13 +386,6 @@ server <- function(input, output) {
     upper <- numeric(length(prevs))
     
     for (i in 1:length(prevs)) {
-      # if (input$precision_O == "Relative Precision") {
-      #   lower[i] <- prevs[i] - prevs[i]*prec_O()
-      #   upper[i] <- prevs[i] + prevs[i]*prec_O()
-      # } else {
-      #   lower[i] <- prevs[i] - prec_O()
-      #   upper[i] <- prevs[i] + prec_O()
-      # }  
       margin <- calcCI(alpha_O(), prevs[i], sampleSize_O(), input$N_O, labFail_O())
       lower[i] <- prevs[i] - margin
       upper[i] <- prevs[i] + margin
@@ -374,15 +408,28 @@ server <- function(input, output) {
       theme(axis.text=element_text(size=12))
   })
 
-  # Text output for plot captions
-  output$text_plot1_O <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
-  output$text_plot2_O <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+  # Hovering text for plots
   output$info1_O <- renderText({
-    paste0("x=", round(as.numeric(input$plot1_O_hover$x),0), ", y=", round(as.numeric(input$plot1_O_hover$y),0))
+    pop = seq(300, 20000, by=100)
+    sampSize = calcSampleSize(alpha_O(), prev_O(), pop, CI_O(), labFail_O())
+    hoverValue(input$plot1_O_hover, pop, sampSize, captions = "", tolerance=0.05, excess = "x = , y = ")
   })
   output$info2_O <- renderText({
-    paste0("x=", round(as.numeric(input$plot2_O_hover$x),3), ", y=", round(as.numeric(input$plot2_O_hover$y),3))
+    prevs <- seq(0.01, 0.5, by=0.01)
+    lower <- numeric(length(prevs))
+    upper <- numeric(length(prevs))
+    for (i in 1:length(prevs)) {
+      margin <- calcCI(alpha_O(), prevs[i], sampleSize_O(), input$N_O, labFail_O())
+      lower[i] <- prevs[i] - margin
+      upper[i] <- prevs[i] + margin
+    }
+    hoverValue(input$plot2_O_hover, prevs, prevs, captions = paste0("\u00B1",round((upper - lower)/2,3)), tolerance=0.03, excess = "CI = ")
   })
+  
+  # Caption text for plots
+  output$text_plot1_O <- renderText({"This plot displays the effect of the finite population correction on the required sample size. A smaller total population size will result in a smaller required sample size. The red point marks the assumed population size and the corresponding required sample size."})
+  output$text_plot2_O <- renderText({"This plot displays how the confidence interval width will change if the calculated sample size is used but the actual prevalence differs from what is assumed. The red point corresponds to the assumed prevalence used to calculate the sample size."})
+
     
 }
 
@@ -498,3 +545,18 @@ shinyApp(ui, server)
 #   n <- nEff/(1-labFail)*(1+infl)
 #   return(ceiling(n))
 # }
+
+# output$info1_O <- renderText({
+#   paste0("x=", round(as.numeric(input$plot1_O_hover$x),0), ", y=", round(as.numeric(input$plot1_O_hover$y),0))
+# })
+# output$info2_O <- renderText({
+#   paste0("x=", round(as.numeric(input$plot2_O_hover$x),3), ", y=", round(as.numeric(input$plot2_O_hover$y),3))
+# })
+
+# if (input$precision == "Relative Precision") {
+#   lower[i] <- prevs[i] - prevs[i]*prec()
+#   upper[i] <- prevs[i] + prevs[i]*prec()
+# } else {
+#   lower[i] <- prevs[i] - prec()
+#   upper[i] <- prevs[i] + prec()
+# } 

@@ -23,30 +23,39 @@ ui <- fluidPage(
           # Display population size input options          
           sidebarPanel(h3("Input Population Sizes"),
                        br(),
+                       h4("DTG Estimate"),
+                       strong("Input the underlying population size for DTG-specific patients. Must be a whole number."),
+                       h5("This is the total number of patients, during the defined survey period and 
+                          across all VL labs in the country, who have viral non-suppression and are taking DTG."),
+                       numericInput("N_DTG", "", 
+                                    20000, min=1, step=1),
                        br(),
-                       br(),
-                       numericInput("N_DTG", "Input the underlying population size for DTG-specific patients. Must be a whole number.", 20000, min=1, step=1),
-                       br(),
-                       br(),
-                       br(),
-                       numericInput("N_O", "Input the underlying population size for patients on all regimens. Must be a whole number.", 10700, min=1, step=1),
-                       br(),
-                       br(),
+                       h4("Overall Estimate"),
+                       strong("Input the underlying population size for patients on all regimens. Must be a whole number."),
+                       h5("This is the total number of patients, during the defined survey period and 
+                          across all VL labs in the country, who have viral non-suppression, regardless of regimen."),
+                       numericInput("N_O", "", 10700, min=1, step=1),
                        br(),
                        actionButton("submit", "Submit"),
                        width=4
           ),
           
           mainPanel(
+            br(),
+            br(),
             
             # Display table of assumptions and sample size required for DTG
             tableOutput("values_DTG"),
-            h4(textOutput("sampleSize_DTG")),
+            h4(textOutput("required_DTG")),
+            h4(textOutput("target_DTG")),
+            br(),
             br(),
             
             # Display table of assumptions and sample size required for overall
             tableOutput("values_O"),
-            h4(textOutput("sampleSize_O")), width=8
+            h4(textOutput("required_O")),
+            h4(textOutput("target_O")),
+            width=8
           )
         )
 )
@@ -65,7 +74,7 @@ server <- function(input, output) {
   prev_DTG <- 0.035
   CI_DTG <- prec_DTG <- 0.02
   alpha_DTG <- 0.05
-  labFail_DTG <- 0.2
+  labFail_DTG <- 0.3
   
   # Function to calculate sample sizes using FPC and Wald-type intervals
   # No inflation factor
@@ -75,8 +84,9 @@ server <- function(input, output) {
     } else {
       nEff <- qnorm(1-alpha/2)^2*prev*(1-prev)*N / 
         (N*CI^2 + (prev*(1-prev)*qnorm(1-alpha/2)^2))
-      n <- nEff/(1-labFail)
-      return(min(N, ceiling(n)))
+      n <- min(N, ceiling(nEff))
+      m <- min(N, ceiling(n/(1-labFail)))
+      return(list(n, m))
     }
   }
   
@@ -104,8 +114,12 @@ server <- function(input, output) {
   output$values_DTG <- renderTable({assumptions_DTG()})
   
   # Sample size output
-  output$sampleSize_DTG <- renderText({
-    paste0("Sample size for DTG-specific estimate: ", sampleSize_DTG())
+  output$required_DTG <- renderText({
+    paste0("Required sample size for DTG-specific estimate: ", sampleSize_DTG()[[1]])
+    
+  })
+  output$target_DTG <- renderText({
+    paste0("Target sample size for DTG-specific estimate: ", sampleSize_DTG()[[2]])
   })
 
   
@@ -116,7 +130,7 @@ server <- function(input, output) {
   prev_O <- 0.5
   CI_O <- prec_O <- 0.06
   alpha_O <- 0.05
-  labFail_O <- 0.2
+  labFail_O <- 0.3
   
   # Calculate sample size
   sampleSize_O <- eventReactive(input$submit,{calcSampleSize(alpha_O, prev_O, input$N_O, 
@@ -142,8 +156,12 @@ server <- function(input, output) {
   output$values_O <- renderTable({assumptions_O()})
   
   # Sample size output
-  output$sampleSize_O <- renderText({
-    paste0("Sample size for overall estimate: ", sampleSize_O())
+  output$required_O <- renderText({
+    paste0("Required sample size for overall estimate: ", sampleSize_O()[[1]])
+  })
+  
+  output$target_O <- renderText({
+    paste0("Target sample size for overall estimate: ", sampleSize_O()[[2]])
   })
   
 }

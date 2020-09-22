@@ -32,28 +32,29 @@ ui <- dashboardPage(
     # Display population size input options
     div(style = "text-align:center", h3("Input eligible population sizes")),
     hr(),
-    # br(),
-    # div(style = "text-align:center; width:40%;", h4("DTG Estimate")),
+    
+    # DTG estimate finite population choices
     radioButtons("inf_DTG", label = h4("DTG Estimate"),
                  choices = list("Finite population" = "finite", "Infinite population" = "infinite"), 
                  selected = "finite"),
     uiOutput("N_DTG"),
-    # br(),
     hr(),
-    # br(),
-    # div(style = "text-align:center; width:48%;", h4("Overall Estimate")),
+    
+    # Overall estimate finite population choices
     radioButtons("inf_O", label = h4("Overall Estimate"),
                  choices = list("Finite population" = "finite", "Infinite population" = "infinite"), 
                  selected = "finite"),
     uiOutput("N_O"),
-    # br(),
     hr(),
+    
+    # Add prop_nonDTG input if infinite population is used
     shinyjs::hidden(
       div(id = "title_prop_nonDTG", style = "text-align:center; width:56%;", h4("Proportion Non-DTG")),
       numericInput("prop_nonDTG", label=h5("Input the proportion of all eligible case specimens belonging to 
                                          patients on non-DTG-containing regimens. Must be a value between 0 and 1."), 
                    0.8, min=0, max=1, step=0.1)
     ),
+    
     actionButton("submit", "Submit"),
     width = 325
   ),
@@ -100,7 +101,6 @@ ui <- dashboardPage(
     )
   ),
   tags$head(tags$style(HTML(".skin-blue .main-sidebar {background-color: #2FA584;}")))
-  #DB5A55
 )
 
 
@@ -113,6 +113,7 @@ server <- function(input, output) {
   # =========================================
   # Server code for DTG-specific calculations
   
+  # Toggle for finite/infinite eligible population
   output$N_DTG <- renderUI({
     switch(input$inf_DTG,
            infinite = div(style = "text-align:center; width:87%;", br(), 
@@ -130,7 +131,6 @@ server <- function(input, output) {
   N_DTG <- reactive({ifelse(input$inf_DTG == "finite", input$N_DTG, Inf)})
   
   # Function to calculate sample sizes using FPC and Wald-type intervals
-  # No inflation factor
   calc_sample_size <- function(alpha, prev, N, CI, labFail) {
     if (N == Inf) {  # infinite population
       nEff <- qnorm(1-alpha/2)^2*prev*(1-prev) / (CI^2)
@@ -177,6 +177,7 @@ server <- function(input, output) {
            a(sampleSize_DTG()[[1]], style = "color:red"))
     
   })
+  
   output$target_DTG <- renderText({
     paste0("Target sample size (adjusted for genotyping failure), m<sub>DTG</sub>: ", 
            a(sampleSize_DTG()[[2]], style = "color:red"))
@@ -191,6 +192,7 @@ server <- function(input, output) {
   # ====================================
   # Server code for overall calculations
   
+  # Toggle for finite/infinite eligible population
   output$N_O <- renderUI({
     switch(input$inf_O,
            infinite = div(style = "text-align:center; width:87%;", br(), 
@@ -246,6 +248,9 @@ server <- function(input, output) {
   })
   
   ##########################################
+  # Server code for non-DTG and total calculations
+  
+  # Toggle for prop_nonDTG user input
   infinite_toggle <- reactive({ list(input$inf_O, input$inf_DTG)})
   
   observeEvent(infinite_toggle(), {
@@ -268,7 +273,7 @@ server <- function(input, output) {
     }
   })
   
-  ## Calculating n_nonDTG
+  ## Calculating n_nonDTG, m_nonDTG, n_total, m_total
   n_nonDTG <- eventReactive(input$submit, {
     if (prop_nonDTG() < 0 | prop_nonDTG() > 1) {
       return("NA. Proportion non-DTG must be between 0 and 1.")
@@ -321,7 +326,7 @@ server <- function(input, output) {
     return(sampleSize_DTG()[[2]] + m_nonDTG())
   })
   
-  
+  # Text output for non-DTG and total
   output$required_non <- renderText({
     paste0("Required sample size, n<sub>nonDTG</sub>: ", 
            a(n_nonDTG(), style = "color:red"))

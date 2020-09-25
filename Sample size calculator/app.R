@@ -2,7 +2,7 @@
 # Shiny App for HIVDR Sample Size Calculations
 # 
 # Results displayed at 
-# https://smwu.shinyapps.io/shinyapp/
+# https://smwu.shinyapps.io/HIVDR/
 #=============================================#
 
 # Load required packages
@@ -36,14 +36,14 @@ ui <- dashboardPage(
     # DTG estimate finite population choices
     radioButtons("inf_DTG", label = h4("DTG Estimate"),
                  choices = list("Finite population" = "finite", "Infinite population" = "infinite"), 
-                 selected = "finite"),
+                 selected = "infinite"),
     uiOutput("N_DTG"),
     hr(),
     
     # Overall estimate finite population choices
     radioButtons("inf_O", label = h4("Overall Estimate"),
                  choices = list("Finite population" = "finite", "Infinite population" = "infinite"), 
-                 selected = "finite"),
+                 selected = "infinite"),
     uiOutput("N_O"),
     hr(),
     
@@ -101,6 +101,7 @@ ui <- dashboardPage(
     )
   ),
   tags$head(tags$style(HTML(".skin-blue .main-sidebar {background-color: #2FA584;}")))
+  
 )
 
 
@@ -120,7 +121,7 @@ server <- function(input, output) {
                           h5("No finite population correction will be used.")),
            finite = numericInput("N_DTG", h5("Input the total number of eligible case specimens from patients on a DTG-containing regimen, 
                 nationally, during the study period. Must be a whole number."),
-                                   20000, min=1, step=1))
+                                 20000, min=1, step=1))
   })
   
   ### Define variables and functions
@@ -151,7 +152,7 @@ server <- function(input, output) {
   # Calculate sample size
   sampleSize_DTG <- eventReactive(input$submit, {calc_sample_size(alpha_DTG, prev_DTG, N_DTG(), 
                                                                   CI_DTG, labFail_DTG)})
-                                                                  
+  
   # Table of user-specified parameter values
   assumptions_DTG <- eventReactive(input$submit, {
     data.frame(

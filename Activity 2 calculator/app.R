@@ -54,24 +54,12 @@ ui <- dashboardPage(
               useShinyjs(),
               fluidPage(
                 fluidRow(
-                  box(title = "Total number of clinics in each laboratory's catchment area.", width = 12, 
+                  box(title = "Total number of clinics in each laboratory's catchment area", width = 12, 
                       status = "warning", solidHeader = TRUE,
                       numericInput("num_labs_d1", label = h4("How many viral load laboratories are there in your country?"), 3,
                                    min=1, step=1), br(),
                       htmlOutput("text_hot_d1"), br(),
-                      htmlOutput("test"),
                       rHandsontableOutput("hot_d1"))
-                ),
-                fluidRow(
-                  box(status = "primary", width = 12, title = "Finite population correction", solidHeader = TRUE,
-                      h4(htmlOutput("fpc_text")),
-                      radioButtons("fpc", label = h5("The finite population correction will reduce the required sample 
-                      size and is recommended if the number of eligible case specimens is known to be small. 
-                      If there are a large number of eligible case specimens, the finite population correction is not necessary."), 
-                                   choices = list("Yes" = 1, "No" = 2), selected = 1))
-                      # radioButtons("fpc_O", label = h4("Would you like to apply the finite population correction to the
-                      # estimate of prevalence of overall ADR among all patients?"), 
-                      #              choices = list("Yes" = 1, "No" = 2), selected = 1)),
                 ),
                 # fluidRow(
                 #   box(width = 12, status = "primary", 
@@ -80,7 +68,7 @@ ui <- dashboardPage(
                 # ),
                 fluidRow(
                   box(title = "Available historical data", width = 12, 
-                      status = "warning", solidHeader = TRUE,
+                      status = "primary", solidHeader = TRUE,
                       
                       numericInput("prop_complete", 
                                    label = h4(HTML("Input the anticipated proportion of patients with all required survey 
@@ -96,12 +84,27 @@ ui <- dashboardPage(
                                                   on DTG-containing and non-DTG-containing regimens")),
                                    choiceValues =c(1, 2, 3), selected = 1),
                       hr(),
-                      uiOutput("historical_data")
+                      htmlOutput("text_hot_historical"), br(),
+                      div(style = 'word-wrap: break-word', rHandsontableOutput("hot_historical")), br(),
+                      # uiOutput("historical_data")
+                      h5(htmlOutput("anticipated_n"))
                       )
                 ),
                 fluidRow(
-                  box(title = "Determining the number of clinics to sample", width = 12, status = "success", solidHeader = TRUE,
-                      radioButtons("historical_clinic", label = h4("Do you have historical clinic-level data?"), 
+                  box(status = "warning", width = 12, title = "Finite population correction", solidHeader = TRUE,
+                      h4(htmlOutput("fpc_text")),
+                      radioButtons("fpc", label = h5("The finite population correction will reduce the required sample 
+                      size and is recommended if the anticipated number of eligible case specimens is small. 
+                      If the anticipated number of eligible case specimens is large, the finite population correction is not necessary."), 
+                                   choices = list("Yes" = 1, "No" = 2), selected = 1))
+                  
+                ),
+                fluidRow(
+                  box(title = "Determining the recommended minimum number of clinics to be sampled", width = 12, status = "success", solidHeader = TRUE,
+                      h4(htmlOutput("historical_clinic_text")),
+                      radioButtons("historical_clinic", 
+                                   label = h5("If not, the national-level historical data reported above will be used to 
+                                              calculate mean clinic sizes."), 
                                    choices = list("Yes" = 1, "No" = 2), selected = 1),
                       conditionalPanel("input.historical_clinic == 1",
                            radioButtons("clinic_data_type", label = h4("What type?"), 
@@ -119,15 +122,18 @@ ui <- dashboardPage(
                                       #mydiv{font-weight: normal;}
                                       #ydiv b{font-weight: bold;}'),
                            hr(), 
-                           uiOutput("clinic_data")),
+                           htmlOutput("text_hot_clinic"), br(),
+                           div(style = 'word-wrap: break-word', rHandsontableOutput("hot_clinic")), br()),
+                           # uiOutput("clinic_data")),
                       conditionalPanel("input.historical_clinic == 2", 
                                        htmlOutput("mean_clinics")),
                       hr(),
-                      h4(htmlOutput("min_clinics"))
+                      h4(strong(htmlOutput("min_clinics")))
                   )
                 ),
                 fluidRow(
                   box(title = "Number of clinics to be sampled", width = 12, status = "success", solidHeader = TRUE,
+                      h4(htmlOutput("num_clinics_text")),
                       uiOutput("num_clinics"))
                 ),
                 div(style = 'text-align:center', actionButton("submit", "Submit", width = '150px', 
@@ -188,8 +194,13 @@ ui <- dashboardPage(
               useShinyjs(),
               fluidPage(
                 fluidRow(
+                  box(title = "Number of clinics sampled for each laboratory", width = 12, 
+                      status = "warning", solidHeader = TRUE,
+                      uiOutput("num_labs_d2"), br(),
+                      htmlOutput("text_hot_d2"), br(),
+                      rHandsontableOutput("hot_d2")),
                   box(title = "Input the total number of DTG and non-DTG eligible case specimens for each clinic", 
-                      status = "warning", width = 12, solidHeader = TRUE,
+                      status = "primary", width = 12, solidHeader = TRUE,
                       htmlOutput("text_table"), br(),
                       htmlOutput("additional_text"), br(),
                       rHandsontableOutput("hot"))
@@ -234,22 +245,25 @@ server <- function(input, output) {
     return(df)
   })
   output$hot_d1 <- renderRHandsontable({
-    values[["DF"]] <- table_d1()
-    out <- rhandsontable(values[["DF"]], stretchH = "all") %>%
-      hot_validate_numeric(col = 3, min=0) %>%
-      hot_col(col = 3, format = "0", halign = "htCenter") %>%
-      hot_col(col = 2, halign = "htCenter") %>%
-      hot_col(col = 1, readOnly = TRUE, halign = "htCenter")
-    return(out)
+    if (!is.null(table_d1())) {
+      values[["DF"]] <- table_d1()
+      out <- rhandsontable(values[["DF"]], stretchH = "all") %>%
+        hot_validate_numeric(col = 3, min=0) %>%
+        hot_col(col = 3, format = "0", halign = "htCenter") %>%
+        hot_col(col = 2, halign = "htCenter") %>%
+        hot_col(col = 1, readOnly = TRUE, halign = "htCenter")
+      return(out)
+    }
   })
   output$text_hot_d1 <- renderText({
     return(paste0("In the table below, input names for the laboratories in the <b> 'Laboratory Name' </b> 
-    column by double-clicking on the cells. <br> In the <b> 'Number of Clinics' </b> column, 
+    column by double-clicking on the cells. <br><br> In the <b> 'Number of Clinics' </b> column, 
     input the total number of clinics served by each laboratory. This must be a whole number."))
   })
   
   # user-inputted data in the table
   data_d1 <- reactive({
+    if(is.null(input$hot_d1)) return(NULL)
     hot_to_r(input$hot_d1)
   })
   
@@ -259,62 +273,172 @@ server <- function(input, output) {
   })
   
   # =========================================================
-  # National-level historical data
-  output$historical_data <- renderUI({
-    if(input$historical_data_type == 1) {
-      div(numericInput("N_vns_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>DTG-containing</b> ART regimen for at least six months, 
-                                  underwent viral load testing, and had <b>viral non-suppression</b>, N<sup>h</sup><sub>VNS,DTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                       4500, min=0, step=1),
-          numericInput("N_vns_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>non-DTG-containing</b> ART regimen for at least six months, 
-                                  underwent viral load testing, and had <b>viral non-suppression</b>, N<sup>h</sup><sub>VNS,nonDTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                       2500, min=0, step=1))
-    } else if(input$historical_data_type == 2) {
-      div(numericInput("N_vt_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>non-DTG-containing</b> ART regimen for at least six months and 
-                                  underwent <b>viral load testing</b>, N<sup>h</sup><sub>VT,DTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                       15000, min=0, step=1),
-          numericInput("N_vt_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
-                                  underwent <b>viral load testing</b>, N<sup>h</sup><sub>VT,nonDTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                       8500, min=0, step=1),
-          numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-          numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1))
+
+  # q <- reactiveValues(VNS_DTG = NULL, VNS_non = NULL, VT_DTG = NULL, VT_non = NULL)
+  
+  table_historical <- reactive({
+    if (input$historical_data_type == 1) {
+      text <- c("", "", 
+      "Number of individuals, in a recent three-month period, who were on an ART regimen for at least six months, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
+      DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VNS,DTG</sub>")
+      DTG2 <- c("", "Input", 4000)
+      non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VNS,nonDTG</sub>")
+      non2 <- c("", "Input", 2500)
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
+    } else if (input$historical_data_type == 2) {
+      text <- c("", "", 
+      "Number of individuals, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.",
+      "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+      DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VT,DTG</sub>",
+                "q<sub>VNS,DTG</sub>")
+      DTG2 <- c("", "Input", 13500, 0.3)
+      non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VT,nonDTG</sub>",
+                "q<sub>VNS,nonDTG</sub>")
+      non2 <- c("", "Input", 8500, 0.3)
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
     } else {
-      div(numericInput("N_art_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>DTG-containing ART regimen </b> for at least six months, 
-                                  N<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
-                       21000, min=0, step=1),
-          numericInput("N_art_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
-                                  in a recent three-month period, who were on a <b>non-DTG-containing ART regimen </b>for at least six months, 
-                                  N<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
-                       10000, min=0, step=1),
-          numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>.
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-          numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-          numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
-          numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1))
+      text <- c("", "", 
+      "Number of individuals, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
+      "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.",
+      "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+      DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>ART,DTG</sub>",
+                "q<sub>VT,DTG</sub", "q<sub>VNS,DTG</sub>")
+      DTG2 <- c("", "Input", 19000, 0.7, 0.3)
+      non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>ART,nonDTG</sub>",
+                "q<sub>VT,nonDTG</sub>", "q<sub>VNS,nonDTG</sub>")
+      non2 <- c("", "Input", 10000, 0.7, 0.3)
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
     }
   })
+  output$hot_historical <- renderRHandsontable({
+    values[["DF_historical"]] <- table_historical()
+    out <- rhandsontable(values[["DF_historical"]],  
+                         rowHeaders = NULL, colHeaders = NULL,
+                         allowedTags = "<sup><sub><strong>") %>%
+      hot_col(col = 1:5, halign = "htCenter") %>%
+      hot_cols(manualColumnResize = TRUE, colWidths = c(150, 50, 50, 50, 50)) %>%
+      hot_row(row = 1:2, readOnly = TRUE) %>%
+      hot_col(col = 1, readOnly = TRUE) %>%
+      hot_col(col = c(1,2,4), readOnly = TRUE, renderer = "html") %>%
+      hot_col(col = c(1,2,4), renderer = htmlwidgets::JS("safeHtmlRenderer")) %>%
+      hot_table(customBorders = list(list(
+        range = list(from = list(row = 2, col = 2),
+                     to = list(row = nrow(values[["DF_historical"]])-1, col = 2)),
+        top = list(width = 2, color = "orange"),
+        left = list(width = 2, color = "orange"),
+        bottom = list(width = 2, color = "orange"),
+        right = list(width = 2, color = "orange")
+      ), list(
+        range = list(from = list(row = 2, col = 4),
+                     to = list(row = nrow(values[["DF_historical"]])-1, col = 4)),
+        top = list(width = 2, color = "orange"),
+        left = list(width = 2, color = "orange"),
+        bottom = list(width = 2, color = "orange"),
+        right = list(width = 2, color = "orange")
+      ))) %>%
+      hot_table(mergeCells = list(
+        list(row = 0, col = 1, rowspan = 1, colspan = 2),
+        list(row = 0, col = 3, rowspan = 1, colspan = 2)
+      ), stretchH = "all")
+    return(out)
+  })
+  output$text_hot_historical <- renderText({
+    return(paste0("In the table below, input the national-level historical data by 
+                  double-clicking on the highlighted cells."))
+  })
+  
+  # user-inputted data in the table
+  data_historical <- reactive({
+    if(is.null(input$hot_historical)) return(NULL)
+    hot_to_r(input$hot_historical)
+  })
+  
+  
+  # # National-level historical data
+  # output$historical_data <- renderUI({
+  #   if(input$historical_data_type == 1) {
+  #     div(numericInput("N_vns_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>DTG-containing</b> ART regimen for at least six months, 
+  #                                 underwent viral load testing, and had <b>viral non-suppression</b>, N<sup>h</sup><sub>VNS,DTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                      4500, min=0, step=1),
+  #         numericInput("N_vns_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>non-DTG-containing</b> ART regimen for at least six months, 
+  #                                 underwent viral load testing, and had <b>viral non-suppression</b>, N<sup>h</sup><sub>VNS,nonDTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                      2500, min=0, step=1))
+  #   } else if(input$historical_data_type == 2) {
+  #     div(numericInput("N_vt_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>DTG-containing</b> ART regimen for at least six months and 
+  #                                 underwent <b>viral load testing</b>, N<sup>h</sup><sub>VT,DTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                      15000, min=0, step=1),
+  #         numericInput("N_vt_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
+  #                                 underwent <b>viral load testing</b>, N<sup>h</sup><sub>VT,nonDTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                      8500, min=0, step=1),
+  #         numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
+  #         numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1))
+  #   } else {
+  #     div(numericInput("N_art_DTG", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>DTG-containing ART regimen </b> for at least six months, 
+  #                                 N<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
+  #                      21000, min=0, step=1),
+  #         numericInput("N_art_non", label = HTML("<div id='mydiv'>Input the national number of individuals, 
+  #                                 in a recent three-month period, who were on a <b>non-DTG-containing ART regimen </b>for at least six months, 
+  #                                 N<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
+  #                      10000, min=0, step=1),
+  #         numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
+  #         numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
+  #         numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>.
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
+  #         numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1)
+  #         )
+  #   }
+  # })
   
 
   # ========================= Server code for DTG-specific calculations =====================================
+  
+  N_DTG <- reactive({
+    if (input$historical_data_type == 1) {
+      return(ceiling(as.numeric(data_historical()[3,3]) * input$prop_complete))
+    } else if (input$historical_data_type == 2) {
+      return(ceiling(as.numeric(data_historical()[3,3]) * as.numeric(data_historical()[4,3]) * input$prop_complete))
+    } else {
+      return(ceiling(as.numeric(data_historical()[3,3]) * as.numeric(data_historical()[4,3]) * as.numeric(data_historical()[5,3]) * input$prop_complete))
+    }
+  })
+  
+  N_non <- reactive({
+    if (input$historical_data_type == 1) {
+      return(ceiling(as.numeric(data_historical()[3,5]) * input$prop_complete))
+    } else if (input$historical_data_type == 2) {
+      return(ceiling(as.numeric(data_historical()[3,5]) * as.numeric(data_historical()[4,5]) * input$prop_complete))
+    } else {
+      return(ceiling(as.numeric(data_historical()[3,5]) * as.numeric(data_historical()[4,5]) * as.numeric(data_historical()[5,5]) * input$prop_complete))
+    }
+  })
+  
+  output$anticipated_n <- renderText({
+    return(paste0("Based on your inputs, the anticipated number of DTG and non-DTG eligible case specimens, respectively: ", 
+                  N_DTG(), " and ", N_non()))
+  })
   
   # # Toggle for finite/infinite eligible population
   # output$N_DTG <- renderUI({
@@ -340,26 +464,18 @@ server <- function(input, output) {
   #   })
   # })
   
-  N_DTG <- reactive({
-    if (input$historical_data_type == 1) {
-      return(ceiling(input$N_vns_DTG * input$prop_complete))
-    } else if (input$historical_data_type == 2) {
-      return(ceiling(input$N_vt_DTG * input$q_vns_DTG * input$prop_complete))
-    } else {
-      return(ceiling(input$N_art_DTG * input$q_vns_DTG * input$q_vt_DTG * input$prop_complete))
-    }
-  })
+  # N_DTG <- reactive({
+  #   if (input$historical_data_type == 1) {
+  #     return(ceiling(input$N_vns_DTG * input$prop_complete))
+  #   } else if (input$historical_data_type == 2) {
+  #     return(ceiling(input$N_vt_DTG * input$q_vns_DTG * input$prop_complete))
+  #   } else {
+  #     return(ceiling(input$N_art_DTG * input$q_vns_DTG * input$q_vt_DTG * input$prop_complete))
+  #   }
+  # })
   
-  N_non <- reactive({
-    if (input$historical_data_type == 1) {
-      return(ceiling(input$N_vns_non * input$prop_complete))
-    } else if (input$historical_data_type == 2) {
-      return(ceiling(input$N_vt_non * input$q_vns_non * input$prop_complete))
-    } else {
-      return(ceiling(input$N_art_non * input$q_vns_non * input$q_vt_non * input$prop_complete))
-    }
-  })
-  
+  # test <- reactive({data_historical()[3,3]})
+  # output$test <- renderText({ paste0(test())})
   # output$test <- renderText({paste(N_DTG(), N_non())})
   
   ### Define variables and functions
@@ -569,7 +685,7 @@ server <- function(input, output) {
     if (N_DTG() < 0 | N_DTG() %% 1 != 0) {
       return("NA. Number of eligible case specimens must be a whole number.")
     }
-    if (N_non() < 0 | N_DTG() %% 1 != 0) {
+    if (N_non() < 0 | N_non() %% 1 != 0) {
       return("NA. Number of eligible case specimens must be a whole number.")
     }
     return(sampleSize_DTG()[[1]] + ceiling(sampleSize_O()[[1]] * prop_nonDTG()))
@@ -625,100 +741,212 @@ server <- function(input, output) {
   })
   
   # ======================== Server code for determining the minimum number of clinics to sample ===================
-  # Clinic data input
-  output$clinic_data <- renderUI({
-    
+  
+  # Description text
+  output$historical_clinic_text <- renderText({
+    return("Do you have historical clinic-level data to calculate median clinic sizes?")
+  })
+  
+  # Table for clinic data input
+  table_clinic <- reactive({
     if (input$clinic_data_type == 1) {
-          div(numericInput("M_vns_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>DTG-containing</b> ART regimen for at least six months, 
-                                  underwent viral load testing, and had <b>viral non-suppression</b>, in a recent three-month period,  
-                                  M<sup>h</sup><sub>VNS,DTG</sub>. Must be a whole number.</div>"), 
-                                45, min=0, step=1),
-                   numericInput("M_vns_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing</b> ART regimen for at least six months, 
-                                  underwent viral load testing, and had <b>viral non-suppression</b>, in a recent three-month period,
-                                  M<sup>h</sup><sub>VNS,nonDTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                                25, min=0, step=1))
+      text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
+      DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VNS,DTG</sub>")
+      DTG2 <- c("", "Input", 40)
+      non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VNS,nonDTG</sub>")
+      non2 <- c("", "Input", 25)
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
     } else if (input$clinic_data_type == 2) {
-        if (input$historical_data_type == 1){
-          div(numericInput("M_vt_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing</b> ART regimen for at least six months and 
-                                  underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,DTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                           150, min=0, step=1),
-              numericInput("M_vt_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
-                                  underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,nonDTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                           85, min=0, step=1),
-              numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-              numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1))
-        } else {
-          div(numericInput("M_vt_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing</b> ART regimen for at least six months and 
-                                  underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,DTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                           150, min=0, step=1),
-              numericInput("M_vt_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
-                                  underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,nonDTG</sub>. 
-                                  Must be a whole number.</div>"), 
-                           85, min=0, step=1))
-        }
+      if (input$historical_data_type == 1) {
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.",
+                  "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+        DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,DTG</sub>",
+                  "q<sub>VNS,DTG</sub>")
+        DTG2 <- c("", "Input", 135, 0.3)
+        non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,nonDTG</sub>",
+                  "q<sub>VNS,nonDTG</sub>")
+        non2 <- c("", "Input", 85, 0.3)
+      } else {
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.")
+        DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,DTG</sub>")
+        DTG2 <- c("", "Input", 135)
+        non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,nonDTG</sub>")
+        non2 <- c("", "Input", 85)
+      }  
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
     } else {
       if (input$historical_data_type == 1) {
-        div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
-                         215, min=0, step=1),
-            numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
-                         120, min=0, step=1),
-            numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-            numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
-                                 who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
-            numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
-            numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1))
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
+                  "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.",
+                  "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+        DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>",
+                  "q<sub>VT,DTG</sub", "q<sub>VNS,DTG</sub>")
+        DTG2 <- c("", "Input", 190, 0.7, 0.3)
+        non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,nonDTG</sub>",
+                  "q<sub>VT,nonDTG</sub>", "q<sub>VNS,nonDTG</sub>")
+        non2 <- c("", "Input", 120, 0.7, 0.3)
       } else if (input$historical_data_type == 2) {
-        div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
-                         215, min=0, step=1),
-            numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
-                         120, min=0, step=1),
-            numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
-            numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
-                                  receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
-                                 Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1))
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
+                  "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.")
+        DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>",
+                  "q<sub>VT,DTG</sub")
+        DTG2 <- c("", "Input", 190, 0.7)
+        non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,nonDTG</sub>",
+                  "q<sub>VT,nonDTG</sub>")
+        non2 <- c("", "Input", 120, 0.7)
       } else {
-        div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
-                         215, min=0, step=1),
-            numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
-                                  who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
-                                  in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
-                         120, min=0, step=1))
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.")
+        DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>")
+        DTG2 <- c("", "Input", 190)
+        non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,nonDTG</sub>")
+        non2 <- c("", "Input", 120)
       }
-    } 
+      
+      df <- data.frame(text, DTG1, DTG2, non1, non2, stringsAsFactors = FALSE)
+      return(df)
+    }
   })
+  output$hot_clinic <- renderRHandsontable({
+    values[["DF_clinic"]] <- table_clinic()
+    out <- rhandsontable(values[["DF_clinic"]], 
+                         rowHeaders = NULL, colHeaders = NULL,
+                         allowedTags = "<sup><sub><strong>") %>%
+      hot_cols(manualColumnResize = TRUE, colWidths = c(150, 50, 50, 50, 50)) %>%
+      hot_row(row = 1:2, readOnly = TRUE) %>%
+      hot_col(col = c(2,3,4,5), halign = "htCenter") %>%
+      hot_col(col = 1, readOnly = TRUE) %>%
+      hot_col(col = c(1,2,4), readOnly = TRUE, renderer = "html") %>%
+      hot_col(col = c(1,2,4), renderer = htmlwidgets::JS("safeHtmlRenderer")) %>%
+      hot_table(customBorders = list(list(
+        range = list(from = list(row = 2, col = 2),
+                     to = list(row = nrow(table_clinic())-1, col = 2)),
+        top = list(width = 2, color = "green"),
+        left = list(width = 2, color = "green"),
+        bottom = list(width = 2, color = "green"),
+        right = list(width = 2, color = "green")
+      ), list(
+        range = list(from = list(row = 2, col = 4),
+                     to = list(row = nrow(table_clinic())-1, col = 4)),
+        top = list(width = 2, color = "green"),
+        left = list(width = 2, color = "green"),
+        bottom = list(width = 2, color = "green"),
+        right = list(width = 2, color = "green")
+      ))) %>%
+      hot_table(mergeCells = list(
+        list(row = 0, col = 1, rowspan = 1, colspan = 2),
+        list(row = 0, col = 3, rowspan = 1, colspan = 2)
+      ), stretchH = "all")
+    return(out)
+  })
+  output$text_hot_clinic <- renderText({
+    return(paste0("In the table below, input the clinic-level historical data by 
+                  double-clicking on the highlighted cells."))
+  })
+  
+  # user-inputted data in the table
+  data_clinic <- reactive({
+    if(is.null(input$hot_clinic)) return(NULL)
+    hot_to_r(input$hot_clinic)
+  })
+  
+  
+  # # Clinic data input
+  # output$clinic_data <- renderUI({
+  #   
+  #   if (input$clinic_data_type == 1) {
+  #         div(numericInput("M_vns_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>DTG-containing</b> ART regimen for at least six months, 
+  #                                 underwent viral load testing, and had <b>viral non-suppression</b>, in a recent three-month period,  
+  #                                 M<sup>h</sup><sub>VNS,DTG</sub>. Must be a whole number.</div>"), 
+  #                               40, min=0, step=1),
+  #                  numericInput("M_vns_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing</b> ART regimen for at least six months, 
+  #                                 underwent viral load testing, and had <b>viral non-suppression</b>, in a recent three-month period,
+  #                                 M<sup>h</sup><sub>VNS,nonDTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                               25, min=0, step=1))
+  #   } else if (input$clinic_data_type == 2) {
+  #       if (input$historical_data_type == 1){
+  #         div(numericInput("M_vt_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing</b> ART regimen for at least six months and 
+  #                                 underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,DTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                          130, min=0, step=1),
+  #             numericInput("M_vt_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
+  #                                 underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,nonDTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                          85, min=0, step=1),
+  #             numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
+  #             numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1))
+  #       } else {
+  #         div(numericInput("M_vt_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing</b> ART regimen for at least six months and 
+  #                                 underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,DTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                          130, min=0, step=1),
+  #             numericInput("M_vt_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing</b> ART regimen for at least six months and  
+  #                                 underwent <b>viral load testing</b>, in a recent three-month period, M<sup>h</sup><sub>VT,nonDTG</sub>. 
+  #                                 Must be a whole number.</div>"), 
+  #                          85, min=0, step=1))
+  #       }
+  #   } else {
+  #     if (input$historical_data_type == 1) {
+  #       div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
+  #                        190, min=0, step=1),
+  #           numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
+  #                        120, min=0, step=1),
+  #           numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
+  #           numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
+  #           numericInput("q_vns_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>DTG-containing</b> regimens, q<sub>VNS,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1),
+  #           numericInput("q_vns_non", label = HTML("<div id='mydiv'>Input the national proportion of those receiving viral load tests 
+  #                                who are also virally non-suppressed, for patients on <b>non-DTG-containing</b> regimens, q<sub>VNS,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.3, min=0, max=1, step=0.1)
+  #           )
+  #     } else if (input$historical_data_type == 2) {
+  #       div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
+  #                        190, min=0, step=1),
+  #           numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
+  #                        120, min=0, step=1),
+  #           numericInput("q_vt_DTG", label = HTML("<div id='mydiv'>Input the national proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>DTG-containing</b> regimens, q<sub>VT,DTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1),
+  #           numericInput("q_vt_non", label = HTML("<div id='mydiv'>Input the national the proportion of those on ART who 
+  #                                 receive viral load tests, for patients on <b>non-DTG-containing</b> regimens, q<sub>VT,nonDTG</sub>. 
+  #                                Must be between 0 and 1.</div>"), 0.7, min=0, max=1, step=0.1))
+  #     } else {
+  #       div(numericInput("M_art_DTG", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,DTG</sub>. Must be a whole number.</div>"), 
+  #                        190, min=0, step=1),
+  #           numericInput("M_art_non", label = HTML("<div id='mydiv'>Input the <b>median</b> number of individuals, per clinic, 
+  #                                 who were on a <b>non-DTG-containing ART</b> regimen for at least six months, 
+  #                                 in a recent three-month period, M<sup>h</sup><sub>ART,nonDTG</sub>. Must be a whole number.</div>"), 
+  #                        120, min=0, step=1))
+  #     }
+  #   } 
+  # })
   avg_clinics <- reactive({
     if (input$historical_clinic == 2) {
       total <- sum(as.integer(data_d1()[,3]))
@@ -734,28 +962,74 @@ server <- function(input, output) {
       ceiling(max(total*m_DTG() / N_DTG(), total*m_nonDTG() / N_non()))
     } else {
       if(input$clinic_data_type == 1) {
-        ceiling(max(m_DTG() / (input$M_vns_DTG*input$prop_complete), m_nonDTG() / (input$M_vns_non*input$prop_complete)))
+        ceiling(max(m_DTG() / (as.numeric(data_clinic()[3,3])*input$prop_complete), m_nonDTG() / (as.numeric(data_clinic()[3,5])*input$prop_complete)))
       } 
       else if(input$clinic_data_type == 2) {
-        denom <- input$M_vt_DTG * input$q_vns_DTG * input$prop_complete
-        ceiling(max(m_DTG() / denom, m_nonDTG() / denom))
+        if (input$historical_data_type == 1) {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_clinic()[4,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_clinic()[4,5]) * input$prop_complete
+        } else if (input$historical_data_type == 2) {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_historical()[4,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_historical()[4,5]) * input$prop_complete
+        } else {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_historical()[5,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_historical()[5,5]) * input$prop_complete
+        }
+        ceiling(max(m_DTG() / denom_DTG, m_nonDTG() / denom_nonDTG))
       } else {
-        denom <- input$M_art_DTG * input$q_vt_DTG * input$q_vns_DTG * input$prop_complete
-        ceiling(max(m_DTG() / denom, m_nonDTG() / denom))
+        if (input$historical_data_type == 1) {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_clinic()[4,3])* as.numeric(data_clinic()[5,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_clinic()[4,5])* as.numeric(data_clinic()[5,5]) * input$prop_complete
+        } else if (input$historical_data_type == 2) {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_clinic()[4,3])* as.numeric(data_historical()[4,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_clinic()[4,5])* as.numeric(data_historical()[4,5]) * input$prop_complete
+        } else {
+          denom_DTG <- as.numeric(data_clinic()[3,3]) * as.numeric(data_historical()[4,3])* as.numeric(data_historical()[5,3]) * input$prop_complete
+          denom_nonDTG <- as.numeric(data_clinic()[3,5]) * as.numeric(data_historical()[4,5])* as.numeric(data_historical()[5,5]) * input$prop_complete
+        }
+        ceiling(max(m_DTG() / denom_DTG, m_nonDTG() / denom_nonDTG))
       }
     }
   })
+  # num_sample_clinics <- reactive({
+  #   if(input$historical_clinic == 2) {
+  #     total <- sum(as.integer(data_d1()[,3]))
+  #     ceiling(max(total*m_DTG() / N_DTG(), total*m_nonDTG() / N_non()))
+  #   } else {
+  #     if(input$clinic_data_type == 1) {
+  #       ceiling(max(m_DTG() / (input$M_vns_DTG*input$prop_complete), m_nonDTG() / (input$M_vns_non*input$prop_complete)))
+  #     } 
+  #     else if(input$clinic_data_type == 2) {
+  #       denom <- input$M_vt_DTG * input$q_vns_DTG * input$prop_complete
+  #       ceiling(max(m_DTG() / denom, m_nonDTG() / denom))
+  #     } else {
+  #       denom <- input$M_art_DTG * input$q_vt_DTG * input$q_vns_DTG * input$prop_complete
+  #       ceiling(max(m_DTG() / denom, m_nonDTG() / denom))
+  #     }
+  #   }
+  # })
   output$mean_clinics <- renderText({
     return(paste0("Mean anticipated number of DTG eligible case specimens per clinic: ", avg_clinics()[[1]], 
            ". <br>Mean anticipated number of non-DTG eligible case specimens per clinic: ", avg_clinics()[[2]], "."))
   })
   
   output$min_clinics <- renderText({
-    return(paste0("Minimum number of clinics that should be sampled, c: ", a(num_sample_clinics(), style = "color:red")))
+    return(paste0("Based on your inputs, the minimum number of clinics recommended to be sampled, c: ", 
+                  a(num_sample_clinics(), style = "color:red; font-size: 20px")))
+  })
+  
+  ## text for number of clinics to be sampled
+  output$num_clinics_text <- renderText({
+    return("Input the number of clinics that will be sampled. Must be a whole number.")
   })
   
   output$num_clinics <- renderUI({
-    numericInput("num_clin_samp", label = h4("Input the number of clinics that will be sampled. Must be a whole number."),
+    numericInput("num_clin_samp", 
+                 label = h5(HTML("The default will be the recommended minimum number of clinics to be sampled, determined above. 
+                            Sampling more clinics is preferred if the budget can accommodate. Sampling fewer clinics than the recommended amount 
+                            may lead to increased variability and a larger risk of not achieving the target sample sizes. 
+                            <br> <br>Note that a minimum of <strong>two</strong> clinics must be sampled from all laboratories serving two or more clinics 
+                            in order to ensure estimation of within-laboratory variation for the ADR prevalence estimates. ")),
                  num_sample_clinics(), min=1, step = 1)
   })
   
@@ -767,8 +1041,8 @@ server <- function(input, output) {
     df <- data.frame(
       labs = c(data_d1()[,2], "Total"),
       num_clinics <- c(data_d1()[,3], total),
-      samp_clinics = c(sapply(1:num_labs(), function(i) {ceiling(input$num_clin_samp*data_d1()[i,3]/total)}), 
-                       sum(ceiling(input$num_clin_samp*data_d1()[,3]/total))) 
+      samp_clinics = c(sapply(1:num_labs(), function(i) {round(input$num_clin_samp*data_d1()[i,3]/total)}), 
+                       sum(round(input$num_clin_samp*data_d1()[,3]/total))) 
     )
     colnames(df) <- c("Laboratory", "Number of Clinics", "Number of Clinics to Sample")
     return(df)
@@ -779,22 +1053,66 @@ server <- function(input, output) {
   
   # ====================================== Reactive Table for Phase 2 ================================================
   
-  ## Handsontable for Phase 2
-  table <- reactive({
-    labName = unlist(sapply(1:num_labs(), function(i) {rep(data_d1()[i, 2], allocation_table_d1()[i, 3])}))
-    clinic = unlist(sapply(1:num_labs(), function(i) { as.character(1:allocation_table_d1()[i,3])}))
-    clinicName <- paste("Clinic", clinic)
-    set.seed(1)
-    rand1 <- runif(length(clinic))*100
-    default_DTG <- round(rand1/sum(rand1)*944)
-    set.seed(2)
-    rand2 <- runif(length(clinic))*100
-    default_nonDTG <- round(rand2 / sum(rand2)*945)
-    
-    df <- data.frame(labName, clinic, clinicName, default_DTG, default_nonDTG, stringsAsFactors = FALSE)
-    colnames(df) <- c("Laboratory Name", "Clinic", "Clinic Name",
-                      "DTG Eligible Case Specimens", "Non-DTG Eligible Case Specimens")
+  output$num_labs_d2 <- renderUI({
+    numericInput("num_labs_d2", label = h4("How many viral load laboratories were clinics sampled from?"), 
+                 num_labs(), min=1, step=1)
+  })
+  
+  num_labs2 <- reactive({input$num_labs_d2})
+  
+  ## Handsontable for re-inputting labs and clinics sampled per lab
+  table_d2 <- reactive({
+    default_n <- nrow(allocation_table_d1()) -1
+    lab <- 1:num_labs2()
+    c_j <- rep(allocation_table_d1()[1:default_n, 3], times = ceiling(num_labs2()/default_n), len = num_labs2())
+    labName <- paste("Lab", as.character(lab))
+    df <- data.frame(lab, labName, c_j, stringsAsFactors = FALSE)
+    colnames(df) <- c("Laboratory", "Laboratory Name", "Number of Clinics Sampled")
     return(df)
+  })
+  output$hot_d2 <- renderRHandsontable({
+    if (!is.null(table_d2())) {
+      values[["DF_d2"]] <- table_d2()
+      out <- rhandsontable(values[["DF_d2"]], stretchH = "all") %>%
+        hot_validate_numeric(col = 3, min=0) %>%
+        hot_col(col = 3, format = "0", halign = "htCenter") %>%
+        hot_col(col = 2, halign = "htCenter") %>%
+        hot_col(col = 1, readOnly = TRUE, halign = "htCenter")
+      return(out)
+    }  
+  })
+  output$text_hot_d2 <- renderText({
+    return(paste0("In the table below, input names for the laboratories in the <b> 'Laboratory Name' </b> 
+    column by double-clicking on the cells. <br><br> In the <b> 'Number of Clinics Sampled' </b> column, 
+    input the number of clinics sampled per laboratory. This must be a whole number, and at least two 
+                  clinics must be sampled from all laboratories serving two or more clinics. Defaults determined 
+                  in Phase 1 have been carried over but can be changed."))
+  })
+  
+  # user-inputted data in the table
+  data_d2 <- reactive({
+    if(is.null(input$hot_d2)) return(NULL)
+    hot_to_r(input$hot_d2)
+  })
+  
+  ## Handsontable for Phase 2 inputting eligible case specimens
+  table <- reactive({
+    if (!is.null(data_d2())) {
+      labName = unlist(sapply(1:num_labs2(), function(i) {rep(data_d2()[i, 2], data_d2()[i, 3])}))
+      clinic = unlist(sapply(1:num_labs2(), function(i) { as.character(1:data_d2()[i,3])}))
+      clinicName <- paste("Clinic", clinic)
+      set.seed(1)
+      rand1 <- runif(length(clinic))*100
+      default_DTG <- round(rand1/sum(rand1)*944)
+      set.seed(2)
+      rand2 <- runif(length(clinic))*100
+      default_nonDTG <- round(rand2 / sum(rand2)*945)
+      
+      df <- data.frame(labName, clinic, clinicName, default_DTG, default_nonDTG, stringsAsFactors = FALSE)
+      colnames(df) <- c("Laboratory Name", "Clinic", "Clinic Name",
+                        "DTG Eligible Case Specimens", "Non-DTG Eligible Case Specimens")
+      return(df)
+    }
   })
   
   output$text_table <- renderText({
@@ -814,19 +1132,22 @@ server <- function(input, output) {
   })
   
   output$hot <- renderRHandsontable({
-    values[["DF2"]] <- table()
-    rtable <- rhandsontable(values[["DF2"]], stretchH = "all") %>%
-        hot_validate_numeric(col = 4, min=0) %>%
-        hot_validate_numeric(col = 5, min=0) %>%
-        hot_col(col = 4, format = "0", halign = "htCenter") %>%
-        hot_col(col = 5, format = "0", halign = "htCenter") %>%
-        hot_col(col = 1, readOnly = TRUE, halign = "htCenter") %>%
-        hot_col(col = 2, halign = "htCenter") %>%
-        hot_col(col = 3, halign = "htCenter")
-    return(rtable)
+    if (!is.null(table())) {
+      values[["DF2"]] <- table()
+      rtable <- rhandsontable(values[["DF2"]], stretchH = "all") %>%
+          hot_validate_numeric(col = 4, min=0) %>%
+          hot_validate_numeric(col = 5, min=0) %>%
+          hot_col(col = 4, format = "0", halign = "htCenter") %>%
+          hot_col(col = 5, format = "0", halign = "htCenter") %>%
+          hot_col(col = 1, readOnly = TRUE, halign = "htCenter") %>%
+          hot_col(col = 2, halign = "htCenter") %>%
+          hot_col(col = 3, halign = "htCenter")
+      return(rtable)
+    }  
   })
   
   data <- reactive({
+    if(is.null(input$hot)) return(NULL)
     hot_to_r(input$hot)
   })
   

@@ -19,8 +19,8 @@ library(rhandsontable)
 ui <- dashboardPage(
   
   dashboardHeader(
-    title = h2("Sample Size Calculations for Acquired HIV Drug Resistance"),
-    titleWidth = 800,
+    title = h2("Sample size calculations for laboratory-based acquired HIV drug resistance survey"),
+    titleWidth = 1100,
     tags$li(class = "dropdown",
             tags$style(".main-header {max-height: 75px}"),
             tags$style(".main-header .logo {height: 75px}")

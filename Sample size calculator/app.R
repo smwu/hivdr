@@ -73,7 +73,7 @@ ui <- dashboardPage(
       
       tabItem(tabName = "sizes",
               fluidRow(
-                box(title = "DTG Estimate Sample Size", status = "primary",
+                box(title = "Sample Size for DTG Case Specimens", status = "primary",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display table of assumptions and sample size required for DTG
                     h5(htmlOutput("text_DTG")), br(),
@@ -82,7 +82,7 @@ ui <- dashboardPage(
                     h4(htmlOutput("target_DTG")),
                 ),
                 
-                box(title = "Overall Estimate Sample Size", status = "primary", 
+                box(title = "Overall Estimated Sample Size", status = "primary", 
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display table of assumptions and sample size required for overall
                     h5(htmlOutput("text_O")), br(),
@@ -95,7 +95,7 @@ ui <- dashboardPage(
               br(),
               
               fluidRow(
-                box(title = "Non-DTG Sample Size", status = "primary",
+                box(title = "Sample Size for Non-DTG Case Specimens", status = "primary",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display sample size required for non-DTG
                     h5(htmlOutput("text_non")), 

@@ -75,7 +75,7 @@ ui <- dashboardPage(
                                                   on DTG-containing and non-DTG-containing regimens"),
                                                   HTML("Number of patients who underwent <b>viral load testing</b> among patients 
                                                   on DTG-containing and non-DTG-containing regimens"),
-                                                  HTML("Number of patients on <b>ART</b> among patients 
+                                                  HTML("Number of patients receiving <b>ART</b> among patients 
                                                   on DTG-containing and non-DTG-containing regimens")),
                                    choiceValues =c(1, 2, 3), selected = 1),
                       hr(),
@@ -110,7 +110,7 @@ ui <- dashboardPage(
                                         underwent <b>viral load testing</b> among patients 
                                         on DTG-containing and non-DTG-containing regimens"),
                                                            HTML("Median number of individuals per clinic 
-                                        on <b>ART</b> among patients 
+                                        receiving <b>ART</b> among patients 
                                         on DTG-containing and non-DTG-containing regimens")),
                                         choiceValues = c(1, 2, 3), selected = 1),
                            tags$style('
@@ -139,7 +139,7 @@ ui <- dashboardPage(
       
       tabItem(tabName = "sizes_d1",
               fluidRow(
-                box(title = "DTG Estimate Sample Size", status = "primary",
+                box(title = "Sample Size for DTG Case Specimens", status = "primary",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display table of assumptions and sample size required for DTG
                     h5(htmlOutput("text_DTG")), br(),
@@ -148,7 +148,7 @@ ui <- dashboardPage(
                     h4(htmlOutput("target_DTG")),
                 ),
                 
-                box(title = "Overall Estimate Sample Size", status = "primary", 
+                box(title = "Overall Estimated Sample Size", status = "primary", 
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display table of assumptions and sample size required for overall
                     h5(htmlOutput("text_O")), br(),
@@ -161,7 +161,7 @@ ui <- dashboardPage(
               br(),
               
               fluidRow(
-                box(title = "Non-DTG Sample Size", status = "primary",
+                box(title = "Sample Size for Non-DTG Case Specimens", status = "primary",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     # Display sample size required for non-DTG
                     h5(htmlOutput("text_non")), 
@@ -281,7 +281,7 @@ server <- function(input, output) {
   table_historical <- reactive({
     if (input$historical_data_type == 1) {
       text <- c("", "", 
-      "Number of individuals, in a recent three-month period, who were on an ART regimen for at least six months, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
+      "Number of individuals, in a recent three-month period, who were receiving ART, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
       DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VNS,DTG</sub>")
       DTG2 <- c("", "Input", 4000)
       non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VNS,nonDTG</sub>")
@@ -290,8 +290,8 @@ server <- function(input, output) {
       return(df)
     } else if (input$historical_data_type == 2) {
       text <- c("", "", 
-      "Number of individuals, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.",
-      "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+      "Number of individuals, in a recent three-month period, who were receiving ART and underwent <strong>viral load testing</strong>. Must be a whole number.",
+      "Anticipated proportion of those receiving viral load tests who also have viral non-suppression. Must be between 0 and 1.")
       DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>VT,DTG</sub>",
                 "q<sub>VNS,DTG</sub>")
       DTG2 <- c("", "Input", 13500, 0.3)
@@ -302,9 +302,9 @@ server <- function(input, output) {
       return(df)
     } else {
       text <- c("", "", 
-      "Number of individuals, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
-      "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.",
-      "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+      "Number of individuals, in a recent three-month period, who were receiving <strong>ART</strong>. Must be a whole number.",
+      "Anticipated proportion of those receiving ART who receive viral load tests. Must be between 0 and 1.",
+      "Anticipated proportion of those receiving viral load tests who also have viral non-suppression. Must be between 0 and 1.")
       DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "N<sup>h</sup><sub>ART,DTG</sub>",
                 "q<sub>VT,DTG</sub", "q<sub>VNS,DTG</sub>")
       DTG2 <- c("", "Input", 19000, 0.7, 0.3)
@@ -634,7 +634,7 @@ server <- function(input, output) {
   # Table for clinic data input
   table_clinic <- reactive({
     if (input$clinic_data_type == 1) {
-      text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
+      text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving ART, underwent viral load testing, and had <strong>viral non-suppression</strong>. Must be a whole number.")
       DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VNS,DTG</sub>")
       DTG2 <- c("", "Input", 40)
       non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VNS,nonDTG</sub>")
@@ -643,8 +643,8 @@ server <- function(input, output) {
       return(df)
     } else if (input$clinic_data_type == 2) {
       if (input$historical_data_type == 1) {
-        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.",
-                  "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving ART and underwent <strong>viral load testing</strong>. Must be a whole number.",
+                  "Anticipated proportion of those receiving viral load tests who also have viral non-suppression. Must be between 0 and 1.")
         DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,DTG</sub>",
                   "q<sub>VNS,DTG</sub>")
         DTG2 <- c("", "Input", 135, 0.3)
@@ -652,7 +652,7 @@ server <- function(input, output) {
                   "q<sub>VNS,nonDTG</sub>")
         non2 <- c("", "Input", 85, 0.3)
       } else {
-        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an ART regimen for at least six months and underwent <strong>viral load testing</strong>. Must be a whole number.")
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving ART and underwent <strong>viral load testing</strong>. Must be a whole number.")
         DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,DTG</sub>")
         DTG2 <- c("", "Input", 135)
         non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>VT,nonDTG</sub>")
@@ -662,9 +662,9 @@ server <- function(input, output) {
       return(df)
     } else {
       if (input$historical_data_type == 1) {
-        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
-                  "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.",
-                  "Anticipated proportion of those receiving viral load tests that are virally non-suppressed. Must be between 0 and 1.")
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving <strong>ART</strong>. Must be a whole number.",
+                  "Anticipated proportion of those receiving ART who receive viral load tests. Must be between 0 and 1.",
+                  "Anticipated proportion of those receiving viral load tests who also have viral non-suppression. Must be between 0 and 1.")
         DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>",
                   "q<sub>VT,DTG</sub", "q<sub>VNS,DTG</sub>")
         DTG2 <- c("", "Input", 190, 0.7, 0.3)
@@ -672,8 +672,8 @@ server <- function(input, output) {
                   "q<sub>VT,nonDTG</sub>", "q<sub>VNS,nonDTG</sub>")
         non2 <- c("", "Input", 120, 0.7, 0.3)
       } else if (input$historical_data_type == 2) {
-        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.",
-                  "Anticipated proportion of those on ART who receive viral load tests. Must be between 0 and 1.")
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving <strong>ART</strong>. Must be a whole number.",
+                  "Anticipated proportion of those receiving ART who receive viral load tests. Must be between 0 and 1.")
         DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>",
                   "q<sub>VT,DTG</sub")
         DTG2 <- c("", "Input", 190, 0.7)
@@ -681,7 +681,7 @@ server <- function(input, output) {
                   "q<sub>VT,nonDTG</sub>")
         non2 <- c("", "Input", 120, 0.7)
       } else {
-        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were on an <strong>ART</strong> regimen for at least six months. Must be a whole number.")
+        text <- c("", "", "Median number of individuals per clinic, in a recent three-month period, who were receiving <strong>ART</strong>. Must be a whole number.")
         DTG1 <- c("Those on <strong>DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,DTG</sub>")
         DTG2 <- c("", "Input", 190)
         non1 <- c("Those on <strong>non-DTG</strong>-containing regimens", "Notation in the protocol", "M<sup>h</sup><sub>ART,nonDTG</sub>")

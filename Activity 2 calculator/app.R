@@ -2,6 +2,7 @@
 # Shiny App for HIVDR Sample Size Calculations
 # 
 # Results displayed at 
+# https://worldhealthorg.shinyapps.io/HIVDR_A2/
 # https://smwu.shinyapps.io/HIVDR_2/
 #=============================================#
 
@@ -11,11 +12,6 @@ library(shinyjs)
 library(shinydashboard)
 library(shinyMatrix)
 library(rhandsontable)
-
-# modify_stop_propagation <- function(x) {
-#   x$children[[1]]$attribs$onclick = "event.stopPropagation()"
-#   x
-# }
 
 ##########################
 # Define UI code

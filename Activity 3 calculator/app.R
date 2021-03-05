@@ -20,24 +20,24 @@ ui <- fluidPage(
       headerPanel("Sample size calculations for clinic-based acquired HIV drug resistance survey"),
         
       # Sidebar options to specify sample size calculation
-      sidebarPanel(h4("Input Values"),
+      sidebarPanel(h4("Input Values"), 
                    sliderInput("prev_VS_DTG", "Expected prevalence of VS for patients on DTG-containing regimens (%)", 
-                               min=0, max=100, value=95, step=5),
-                   sliderInput("prev_VS_O", "Expected prevalence of VS for patients overall (%)", 
                                min=0, max=100, value=90, step=5),
+                   sliderInput("prev_VS_O", "Expected prevalence of VS for patients overall (%)", 
+                               min=0, max=100, value=85, step=5),
                    
                    sliderInput("prec_VS_DTG", "Absolute precision (95% CI half-width) of VS outcome for patients on DTG-containing regimens (%)", 
-                               min=0, max=30, value=3, step=0.5),
+                               min=0, max=30, value=5, step=0.5),
                    sliderInput("prec_VS_O", "Absolute precision (95% CI half-width) of VS outcome for patients overall (%)", 
                                min=0, max=30, value=5, step=0.5),
                    hr(),
                    
-                   numericInput("n", "Number of clinics to sample", min=17, value=20, step=1),
+                   numericInput("n", "Number of clinics to sample", min=17, value=40, step=1),
                    numericInput("N", "Total number of clinics", min=17, value=100000, step=1),
                    numericInput("M", "Total number of individuals on ART", min=0, value=100000000, step=1),
                    
                    hr(),
-                   
+                   sliderInput("ICC_VS", "ICC for VS", min=0, max=1, value=0.06, step=0.01),
                    # sliderInput("q_VNS_DTG", "Percentage of individuals on DTG-containing ART with viral non-suppression (%)", 
                    #             min=0, max=100, value=95, step=5),
                    # sliderInput("q_VNS_O", "Percentage of individuals on ART with viral non-suppression (%)", 
@@ -45,40 +45,43 @@ ui <- fluidPage(
                    
                    sliderInput("q_DTG", "National percentage of individuals on ART who are on DTG-containing regimens (%)", 
                                min=0, max=100, value=60, step=1),
-                   sliderInput("prev_ADR_DTG", "Expected prevalence of ADR for patients on DTG-containing regimens and with viral non-suppression (%)", 
+                   sliderInput("prev_ADR_DTG", "Expected prevalence of DTG-specific ADR for patients on DTG-containing regimens and with viral non-suppression (%)", 
                                min=0, max=100, value=3.5, step=0.5),
                    sliderInput("prev_ADR_O", "Expected prevalence of ADR for all patients with viral non-suppression (%)", 
-                               min=0, max=100, value=50, step=0.5)
+                               min=0, max=100, value=50, step=0.5),
+                   sliderInput("ICC_ADR", "ICC for ADR", min=0, max=1, value=0.06, step=0.01)
       ),
 
       # Main panel display consisting of two tables and two plots
       mainPanel(
         fluidRow(
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightblue",
               h3("Sample Size for DTG Case Specimens"),
               # Display table of assumptions and sample size required for DTG
               h5(htmlOutput("text_DTG")), br(),
               tableOutput("values_DTG"),
               h4(htmlOutput("clinic_DTG")),
-              h4(htmlOutput("sample_size_DTG"))
+              h4(htmlOutput("sample_size_DTG")),
+              h4(htmlOutput("minimum_clinics_DTG"))
             )  
           ),
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightblue",
               h3("Overall Estimated Sample Size"),
               # Display table of assumptions and sample size required for overall
               h5(htmlOutput("text_O")), br(),
               tableOutput("values_O"),
               h4(htmlOutput("clinic_O")),
-              h4(htmlOutput("sample_size_O"))
+              h4(htmlOutput("sample_size_O")),
+              h4(htmlOutput("minimum_clinics_O"))
             )  
           )   
         ),
 
         fluidRow(
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightblue",
               h3("Sample Size for Non-DTG Case Specimens"),
               # Display sample size required for non-DTG
               h5(htmlOutput("text_non")),
@@ -88,7 +91,7 @@ ui <- fluidPage(
             )
           ),
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightyellow",
               h3("Total Sample Size"),
               # Display total sample size required
               h5(htmlOutput("text_total")), br(),
@@ -100,7 +103,7 @@ ui <- fluidPage(
         
         fluidRow(
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightgreen",
               h3("Precision for DTG ADR Estimates"),
               # Display precision for ADR estimates for DTG and overall
               tableOutput("values_ADR_DTG"),
@@ -108,7 +111,7 @@ ui <- fluidPage(
             )
           )  ,
           column(6,
-            wellPanel(
+            wellPanel(style = "background: lightgreen",
               h3("Precision for Overall ADR Estimates"),
               tableOutput("values_ADR_O"),
               h4(htmlOutput("prec_ADR_O"))
@@ -137,7 +140,7 @@ server <- function(input, output) {
   q_DTG <- reactive({input$q_DTG/100})
   alpha <- 0.05
   labFail <- 0.15
-  ICC <- 0.004278927
+  # ICC <- 0.004278927 
   DE_info <- 1.5
 
   # Function to calculate sample size per clinic using FPC and Wald-type intervals
@@ -146,15 +149,18 @@ server <- function(input, output) {
     k_eff <- (qt(1-alpha/2, df=n-1))^2*prev*(1-prev)/CI^2
     m <- (1-ICC)/(n/(DE_info*k_eff) - ICC*(1-n/N) + N/(M*q)*(1-ICC))
     m <- m/(1-labFail)
-    return(ceiling(m))
+    return(list(m=ceiling(m), keff = k_eff))
   }
 
   ### Calculate sample size
   sample_size_DTG_clinic <- reactive({calcSampleSize(prev=prev_VS_DTG(), CI=prec_VS_DTG(), 
                                                      n=input$n, N=input$N, M=input$M,
-                                         q=q_DTG(), ICC=ICC, DE_info=DE_info, 
+                                         q=q_DTG(), ICC=input$ICC_VS, DE_info=DE_info, 
                                          labFail=labFail, alpha=alpha)})
-  sample_size_DTG <- reactive({sample_size_DTG_clinic()*input$n})
+
+  # min_clinics_DTG <- reactive({ceiling(sample_size_DTG_clinic()[[2]]*input$ICC_VS)})
+  min_clinics_DTG <- reactive({ceiling((input$N+input$M)*input$ICC_VS / input$M / 
+                                         (1/(DE_info*sample_size_DTG_clinic()[[2]])+input$ICC_VS/input$N))})
 
   ### Output tables
   # Table of user-specified parameter values
@@ -167,16 +173,16 @@ server <- function(input, output) {
                       "Total number of individuals on ART",
                       "ICC",
                       "Design effect due to imperfect weights",
-                      "Significance Level",
+                      # "Significance Level",
                       "Laboratory Failure Rate"),
       Value = as.character(c(paste0(prev_VS_DTG()*100, "%"),
                              paste0("\u00B1", prec_VS_DTG()*100, "%"),
                              input$n,
                              input$N,
                              input$M,
-                             ICC,
+                             input$ICC_VS,
                              DE_info,
-                             alpha,
+                             # alpha,
                              paste0(labFail*100, "%"))),
       stringsAsFactors = FALSE)
   })
@@ -184,23 +190,36 @@ server <- function(input, output) {
   # Render table
   output$values_DTG <- renderTable({assumptions_DTG()})
 
-  # Sample size output
-  output$clinic_DTG <- renderText({
-    paste0("Sample size per clinic, m<sub>DTG</sub>: ",
-           a(sample_size_DTG_clinic(), style = "color:red"))
-
-  })
-
-  output$sample_size_DTG <- renderText({
-    paste0("Sample size across clinics:  ",
-           a(sample_size_DTG(), style = "color:red"))
-  })
+  # # Sample size output
+  # output$clinic_DTG <- renderText({
+  #   if (sample_size_DTG_clinic()[[1]] < 0) {
+  #     paste0("Sample size per clinic, m<sub>DTG</sub>: ",
+  #            a(sample_size_DTG_clinic()[[1]], style = "color:red"))
+  #   } else {
+  #     paste0("Sample size per clinic, m<sub>DTG</sub>: ",
+  #            a(sample_size_DTG_clinic()[[1]], style = "color:blue"))
+  #   }
+  # })
+  # 
+  # output$sample_size_DTG <- renderText({
+  #   if (sample_size_DTG() < 0) {
+  #     paste0("Sample size across clinics:  ",
+  #            a(sample_size_DTG(), style = "color:red"))
+  #   } else {
+  #     paste0("Sample size across clinics:  ",
+  #            a(sample_size_DTG(), style = "color:blue"))
+  #   }  
+  # })
 
   output$text_DTG <- renderText({
     "Sample sizes necessary for estimating the prevalence of viral suppression
     among patients taking DTG-containing regimens."
   })
-
+  
+  output$minimum_clinics_DTG <- renderText({
+    paste0("Minimum number of clinics necessary: ", 
+           a(min_clinics_DTG(), style = "color:red"))
+  })
 
   # ====================================
   # Server code for overall calculations
@@ -214,9 +233,12 @@ server <- function(input, output) {
   # Calculate sample size
   sample_size_O_clinic <- reactive({calcSampleSize(prev=prev_VS_O(), CI=prec_VS_O(),
                                                    n=input$n, N=input$N, M=input$M,
-                                                     q=1, ICC=ICC, DE_info=DE_info, 
+                                                     q=1, ICC=input$ICC_VS, DE_info=DE_info, 
                                                      labFail=labFail, alpha=alpha)})
-  sample_size_O <- reactive({sample_size_O_clinic()*input$n})
+  sample_size_O <- reactive({sample_size_O_clinic()[[1]]*input$n})
+  # min_clinics_O <- reactive({ceiling(sample_size_O_clinic()[[2]]*input$ICC_VS)})
+  min_clinics_O <- reactive({ceiling((input$N+input$M)*input$ICC_VS / input$M / 
+                                         (1/(DE_info*sample_size_O_clinic()[[2]])+input$ICC_VS/input$N))})
 
   ### Output tables
   # Table of user-specified parameter values
@@ -229,16 +251,16 @@ server <- function(input, output) {
                       "Total number of individuals on ART",
                       "ICC",
                       "Design effect due to imperfect weights",
-                      "Significance Level",
+                      # "Significance Level",
                       "Laboratory Failure Rate"),
       Value = as.character(c(paste0(prev_VS_O()*100, "%"),
                              paste0("\u00B1", prec_VS_O()*100, "%"),
                              input$n,
                              input$N,
                              input$M,
-                             ICC,
+                             input$ICC_VS,
                              DE_info,
-                             alpha,
+                             # alpha,
                              paste0(labFail*100, "%"))),
       stringsAsFactors = FALSE)
   })
@@ -248,20 +270,69 @@ server <- function(input, output) {
 
   # Sample size output
   output$clinic_O <- renderText({
-    paste0("Sample size per clinic, m<sub>overall</sub>: ",
-           a(sample_size_O_clinic(), style = "color:red"))
-
+    if (sample_size_O_clinic()[[1]] < 0) {
+      paste0("Sample size per clinic, m<sub>overall</sub>: ",
+             a(sample_size_O_clinic()[[1]], style = "color:red"))
+    } else {
+      paste0("Sample size per clinic, m<sub>overall</sub>: ",
+             a(sample_size_O_clinic()[[1]], style = "color:blue"))
+    }
   })
 
   output$sample_size_O <- renderText({
-    paste0("Sample size across clinics: ",
-           a(sample_size_O(), style = "color:red"))
+    if (sample_size_O() < 0) {
+      paste0("Sample size across clinics: ",
+             a(sample_size_O(), style = "color:red"))
+    } else {
+      paste0("Sample size across clinics: ",
+             a(sample_size_O(), style = "color:blue"))
+    }
   })
 
   output$text_O <- renderText({
     "Sample sizes necessary for estimating the prevalence of viral suppression among all patients."
   })
   
+  output$minimum_clinics_O <- renderText({
+    paste0("Minimum number of clinics necessary: ", 
+           a(min_clinics_O(), style = "color:red"))
+  })
+  
+
+  # ===========================================================
+  # Server code for potential modification of DTG sample size 
+  # Depends on overall sample size and proportion on DTG
+  
+  ## Modified sample size for DTG for when n_overall > n_DTG
+  sample_size_DTG_clinic_mod <- reactive({
+    n_DTG_1 <- sample_size_DTG_clinic()[[1]]
+    n_DTG_2 <- ceiling(sample_size_O_clinic()[[1]] * q_DTG())
+    max(n_DTG_1, n_DTG_2)
+  })
+  
+  ## Sample size for DTG across clinics
+  sample_size_DTG <- reactive({sample_size_DTG_clinic_mod()*input$n})
+  
+  # Sample size output
+  output$clinic_DTG <- renderText({
+    if (sample_size_DTG_clinic_mod() < 0) {
+      paste0("Sample size per clinic, m<sub>DTG</sub>: ",
+             a(sample_size_DTG_clinic_mod(), style = "color:red"))
+    } else {
+      paste0("Sample size per clinic, m<sub>DTG</sub>: ",
+             a(sample_size_DTG_clinic_mod(), style = "color:blue"))
+    }
+  })
+  
+  output$sample_size_DTG <- renderText({
+    if (sample_size_DTG() < 0) {
+      paste0("Sample size across clinics:  ",
+             a(sample_size_DTG(), style = "color:red"))
+    } else {
+      paste0("Sample size across clinics:  ",
+             a(sample_size_DTG(), style = "color:blue"))
+    }  
+  })
   
   ##================================================================================
   # Server code for non-DTG and total calculations
@@ -270,26 +341,36 @@ server <- function(input, output) {
   
   ## Calculating m_nonDTG and m_total
   sample_size_nonDTG_clinic <- reactive({
-    ceiling(sample_size_O_clinic() * q_nonDTG())
+    ceiling(sample_size_O_clinic()[[1]] * q_nonDTG())
   })
   
   sample_size_nonDTG <- reactive({sample_size_nonDTG_clinic()*input$n})
   
   sample_size_total_clinic <- reactive({
-    ceiling(sample_size_nonDTG_clinic() + sample_size_DTG_clinic())
+    ceiling(sample_size_nonDTG_clinic() + sample_size_DTG_clinic_mod())
   })
   
   sample_size_total <- reactive({sample_size_total_clinic()*input$n})
   
   # Text output for non-DTG and total
   output$clinic_non <- renderText({
-    paste0("Sample size per clinic, m<sub>nonDTG</sub>: ",
-           a(sample_size_nonDTG_clinic(), style = "color:red"))
+    if (sample_size_nonDTG_clinic() < 0) {
+      paste0("Sample size per clinic, m<sub>nonDTG</sub>: ",
+             a(sample_size_nonDTG_clinic(), style = "color:red"))
+    } else {
+      paste0("Sample size per clinic, m<sub>nonDTG</sub>: ",
+             a(sample_size_nonDTG_clinic(), style = "color:blue"))
+    }
   })
   
   output$sample_size_non <- renderText({
-    paste0("Sample size across clinics: ",
-           a(sample_size_nonDTG(), style = "color:red"))
+    if (sample_size_nonDTG() < 0) {
+      paste0("Sample size across clinics: ",
+             a(sample_size_nonDTG(), style = "color:red"))
+    } else {
+      paste0("Sample size across clinics: ",
+             a(sample_size_nonDTG(), style = "color:blue"))
+    }
   })
   
   output$text_non <- renderText({
@@ -304,13 +385,23 @@ server <- function(input, output) {
   
   ## Calculating total sample sizes required
   output$clinic_total <- renderText({
-    paste0("Sample size per clinic, m<sub>DTG</sub> + m<sub>nonDTG</sub>: ",
-           a(sample_size_total_clinic(), style = "color:red"))
+    if (sample_size_DTG_clinic_mod() < 0 | sample_size_nonDTG_clinic() < 0) {
+      paste0("Sample size per clinic, m<sub>DTG</sub> + m<sub>nonDTG</sub>: ",
+             a(sample_size_total_clinic(), style = "color:red"))
+    } else {
+      paste0("Sample size per clinic, m<sub>DTG</sub> + m<sub>nonDTG</sub>: ",
+             a(sample_size_total_clinic(), style = "color:blue"))
+    }
   })
   
   output$sample_size_total <- renderText({
-    paste0("Sample size across clinics: ",
-           a(sample_size_total(), style = "color:red"))
+    if (sample_size_DTG() < 0 | sample_size_nonDTG() < 0) {
+      paste0("Sample size across clinics: ",
+             a(sample_size_total(), style = "color:red"))
+    } else {
+      paste0("Sample size across clinics: ",
+             a(sample_size_total(), style = "color:blue"))
+    }
   })
   
   output$text_total <- renderText({
@@ -343,23 +434,23 @@ server <- function(input, output) {
   }
   
   ### Calculate precision
-  prec_ADR_DTG <- reactive({calc_precision(m=sample_size_DTG_clinic(), prev=prev_ADR_DTG(), 
+  prec_ADR_DTG <- reactive({calc_precision(m=sample_size_DTG_clinic_mod(), prev=prev_ADR_DTG(), 
                                            n=input$n, N=input$N, M=input$M,
-                                           q=q_DTG(), q_VNS=1-prev_VS_DTG(), ICC=ICC, DE_info=DE_info, 
+                                           q=q_DTG(), q_VNS=1-prev_VS_DTG(), ICC=input$ICC_ADR, DE_info=DE_info, 
                                            labFail=labFail, genoFail=genoFail, alpha=alpha)})
   prec_ADR_O <- reactive({calc_precision(m=sample_size_total_clinic(), prev=prev_ADR_O(), 
                                          n=input$n, N=input$N, M=input$M,
-                                         q=1, q_VNS=1-prev_VS_O(), ICC=ICC, DE_info=DE_info, 
+                                         q=1, q_VNS=1-prev_VS_O(), ICC=input$ICC_ADR, DE_info=DE_info, 
                                          labFail=labFail, genoFail=genoFail, alpha=alpha)})
   
   # Render output
   output$prec_ADR_DTG <- renderText({
     paste0("Precision for ADR estimate of DTG-specific resistance among patients on DTG-containing regimens: ",
-           a(paste0("\u00B1", prec_ADR_DTG()*100, "%"), style = "color:red"))
+           a(paste0("\u00B1", prec_ADR_DTG()*100, "%"), style = "color:blue"))
   })
   output$prec_ADR_O <- renderText({
     paste0("Precision for ADR estimate of overall resistance among all patients: ",
-           a(paste0("\u00B1", prec_ADR_O()*100, "%"), style = "color:red"))
+           a(paste0("\u00B1", prec_ADR_O()*100, "%"), style = "color:blue"))
   })
   
   # Table of user-specified parameter values
@@ -373,7 +464,7 @@ server <- function(input, output) {
                       "Total number of individuals on ART",
                       "ICC",
                       "Design effect due to imperfect weights",
-                      "Significance Level",
+                      # "Significance Level",
                       "Laboratory Failure Rate",
                       "Genotyping Failure Rate"),
       Value = as.character(c(paste0(prev_ADR_DTG()*100, "%"),
@@ -382,9 +473,9 @@ server <- function(input, output) {
                              input$n,
                              input$N,
                              input$M,
-                             ICC,
+                             input$ICC_ADR,
                              DE_info,
-                             alpha,
+                             # alpha,
                              paste0(labFail*100, "%"),
                              paste0(genoFail*100, "%"))),
       stringsAsFactors = FALSE)
@@ -404,7 +495,7 @@ server <- function(input, output) {
                       "Total number of individuals on ART",
                       "ICC",
                       "Design effect due to imperfect weights",
-                      "Significance Level",
+                      # "Significance Level",
                       "Laboratory Failure Rate",
                       "Genotyping Failure Rate"),
       Value = as.character(c(paste0(prev_ADR_O()*100, "%"),
@@ -413,9 +504,9 @@ server <- function(input, output) {
                              input$n,
                              input$N,
                              input$M,
-                             ICC,
+                             input$ICC_ADR,
                              DE_info,
-                             alpha,
+                             # alpha,
                              paste0(labFail*100, "%"),
                              paste0(genoFail*100, "%"))),
       stringsAsFactors = FALSE)

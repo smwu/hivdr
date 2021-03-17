@@ -70,7 +70,7 @@ ui <- dashboardPage(
                   box(title = "Number of clinics to be sampled", width = 12, status = "success", solidHeader = TRUE,
                       numericInput("n", label = h4(HTML("Input the number of clinics to sample. 
                                                         Must be a whole number")), 
-                                   30, min=1, step=1),
+                                   20, min=1, step=1),
                       uiOutput("minimum_clinics")
                   )
                 ),
@@ -153,9 +153,16 @@ server <- function(input, output) {
   q_DTG <- reactive({input$q_DTG/100})
   q_nonDTG <- reactive({min(max(0, 1-q_DTG()), 1)})
   alpha <- 0.05
-  labFail <- 0.15
-  ICC <- reactive({ifelse(input$option == 1, 0.09, 0.06)})  # Previous ICC <- 0.004278927 
+  labFail <- 0.1
   DE_info <- 1.5
+  ICC <- eventReactive(input$submit, {# Previous ICC <- 0.004278927
+    if (min_clinics()[[1]] > input$n) {
+      ifelse(input$option == 1, 0.09, 0.06)
+    } else {
+      0.09
+    }
+  })     
+  
   
   # Define N and M according to whether FPC is to be used. If not, N=100000 and M=100000000
   N <- reactive({ifelse(input$fpc == 1, input$N, 100000)})
@@ -441,7 +448,7 @@ server <- function(input, output) {
   # Define variables
   prev_ADR_DTG <- 0.035
   prev_ADR_O <- 0.5
-  genoFail <- 0.3
+  genoFail <- 0.15
   DE <- 1.5
   
   # Function to calculate the precision using FPC and Wald-type intervals using the simple DE=1.5 adjustment
@@ -531,7 +538,7 @@ server <- function(input, output) {
   # Table of user-specified parameter values
   assumptions_ADR_O <- eventReactive(input$submit, {
     data.frame(
-      Assumptions = c("Expected prevalence of DTG-specific ADR for all patients VNS",
+      Assumptions = c("Expected prevalence of ADR for all patients VNS",
                       "VS sample size for all patients",
                       "Expected percentage of patients with VNS",
                       "Number of clinics sampled",

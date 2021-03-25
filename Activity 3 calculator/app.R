@@ -43,19 +43,45 @@ ui <- dashboardPage(
                 fluidRow(
                   box(title = "Total number of clinics and patients on ART", width = 12, 
                       status = "warning", solidHeader = TRUE,
-                      numericInput("N", label = h4("What is the total number of clinics in your country?"), 300,
-                                   min=1, step=1),
-                      numericInput("M", label = h4("What is the total number of patients on ART in your country?"), 20000,
-                                   min=1, step=1)
+                      radioButtons("population", label = h4("What is the survey population of interest?"),
+                                   choices = list("Adults" = 1, 
+                                                  "Children/adolescents" = 2), selected = 1),
+                      conditionalPanel("input.population == 1",
+                         numericInput("N", label = h4("What is the total number of clinics supporting adults in your country?"), 
+                                      300, min=1, step=1),
+                         numericInput("M", label = h4("What is the total number of adults on ART in your country?"), 
+                                      20000, min=1, step=1)
+                      ),
+                      conditionalPanel("input.population == 2",
+                         numericInput("N", label = h4("What is the total number of clinics supporting children/adolescents 
+                                                      in your country?"), 
+                                      300, min=1, step=1),
+                         numericInput("M", label = h4("What is the total number of children/adolescents on ART 
+                                                      in your country?"), 
+                                      20000, min=1, step=1)
+                      )
+                            # numericInput("N", label = h4("What is the total number of clinics in your country?"), 300,
+                            #              min=1, step=1),
+                            # numericInput("M", label = h4("What is the total number of patients on ART in your country?"), 20000,
+                            #              min=1, step=1)
                   )
                 ),
                 fluidRow(
                   box(title = "Percentage on DTG-containing regimens", width = 12, 
                       status = "primary", solidHeader = TRUE,
-                      
-                      numericInput("q_DTG", label = h4(HTML("Input the national percentage of individuals on ART who are 
+                      conditionalPanel("input.population == 1",
+                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of adults on ART who are 
                                                             on DTG-containing regimens (%).")), 
-                                   60, min=0, max=100, step=1)
+                                                    60, min=0, max=100, step=1)
+                      ),
+                      conditionalPanel("input.population == 2",
+                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of children/adolescents 
+                                       on ART who are on DTG-containing regimens (%).")), 
+                                                    60, min=0, max=100, step=1)
+                      )
+                            # numericInput("q_DTG", label = h4(HTML("Input the national percentage of individuals on ART who are 
+                            #                                       on DTG-containing regimens (%).")), 
+                            #              60, min=0, max=100, step=1)
                   )
                 ),
                       # fluidRow(
@@ -274,24 +300,28 @@ server <- function(input, output) {
             #   revised <- TRUE
     tagList(
       # a(HTML("Number of clinics to be sampled is too small."), style = "color:red; font-size: 20px"),
-      radioButtons("option", label = h4(HTML(paste0("Can at least ", "<strong>", min_clinics()[[1]], "</strong>", 
-                                      " clinics be sampled? This is the minimum number of clinics necessary and achieves 
+      radioButtons("option", label = h4(HTML(paste0("<strong> Can at least ", "<span style='color:red'>", 
+                                                    min_clinics()[[1]], "</span>",
+                                      " clinics be sampled? </strong> This is the minimum number of clinics necessary and achieves 
                                       a total sample size less than or equal to 1500."))),
                    choices = list("Yes (ideal and more conservative option that accounts for a higher level of 
-                                  clustering.)" = 1, 
+                                  clustering)." = 1, 
                                   "No (less ideal and less conservative option that accounts for a lower level 
-                                  of clustering.)" = 2), selected = 1),
+                                  of clustering)." = 2), selected = 1),
       conditionalPanel("input.option == 1",
                        numericInput("n_sampled",
-                                    label = h4(paste("Input the updated number of clinics to be sampled. 
-                                                     Minimum number of clinics required is ",
-                                                     min_clinics()[[1]], ".")), min_clinics()[[1]],
+                                    label = h4(HTML(paste0("<strong> Input the number of clinics to be sampled. </strong> 
+                                                     Minimum number of clinics required is ", "<span style='color:red'>", 
+                                                     min_clinics()[[1]], "</span>. Sampling more clinics is preferable from 
+                                                     a statistical standpoint."))), min_clinics()[[1]],
                                     min=min_clinics()[[1]], step=1),
       ),
       conditionalPanel("input.option == 2",   # ICC=0.06
                        numericInput("n_sampled_2",
-                                    label = h4(paste("Input the updated number of clinics to be sampled. Minimum number of clinics required is ",
-                                                     min_clinics_op2()[[1]], ".")), min_clinics_op2()[[1]],
+                                    label = h4(HTML(paste0("<strong> Input the number of clinics to be sampled. </strong> 
+                                                      Minimum number of clinics required is ", "<span style='color:red'>", 
+                                                     min_clinics_op2()[[1]], "</span>. Sampling more clinics is preferable from 
+                                                     a statistical standpoint."))), min_clinics_op2()[[1]],
                                     min=min_clinics_op2()[[1]], step=1)
       ),
     )
@@ -379,7 +409,7 @@ server <- function(input, output) {
                       "ICC",
                       "Design effect due to imperfect weights",
                       # "Significance Level",
-                      "Laboratory Failure Rate"),
+                      "Viral load testing failure rate"),
       Value = as.character(c(paste0(prev_VS_DTG*100, "%"),
                              paste0("\u00B1", prec_VS_DTG*100, "%"),
                              paste0(prev_VS_O*100, "%"),
@@ -511,7 +541,7 @@ server <- function(input, output) {
   # Define variables
   prev_ADR_DTG <- 0.035
   prev_ADR_O <- 0.5
-  genoFail <- 0.15
+  genoFail <- 0.3
   DE <- 1.5
   
   # Function to calculate the precision using FPC and Wald-type intervals using the simple DE=1.5 adjustment
@@ -580,9 +610,9 @@ server <- function(input, output) {
     data.frame(
       Assumptions = c("Expected prevalence of DTG-specific ADR for patients on DTG-containing regimens with VNS",
                       "VS sample size for patients on DTG-containing regimens",
-                      "Laboratory Failure Rate",
+                      "Viral load testing failure rate",
                       "Expected proportion of patients with VNS on DTG-containing regimens",
-                      "Genotyping Failure Rate",
+                      "Genotyping testing failure rate",
                       "Number of clinics sampled",
                       "Design effect"),
       Value = as.character(c(paste0(prev_ADR_DTG*100, "%"),
@@ -599,11 +629,11 @@ server <- function(input, output) {
   # Table of user-specified parameter values
   assumptions_ADR_O <- eventReactive(input$submit, {
     data.frame(
-      Assumptions = c("Expected prevalence of ADR for all patients VNS",
+      Assumptions = c("Expected prevalence of any ADR for all patients with VNS",
                       "VS sample size for all patients",
-                      "Laboratory Failure Rate",
+                      "Viral load testing failure rate",
                       "Expected percentage of patients with VNS",
-                      "Genotyping Failure Rate",
+                      "Genotyping testing failure rate",
                       "Number of clinics sampled",
                       "Design effect"),
       Value = as.character(c(paste0(prev_ADR_O*100, "%"),

@@ -45,7 +45,7 @@ ui <- dashboardPage(
                       status = "warning", solidHeader = TRUE,
                       radioButtons("population", label = h4("What is the survey population of interest?"),
                                    choices = list("Adults" = 1, 
-                                                  "Children/adolescents" = 2), selected = 1),
+                                                  "Children and adolescents" = 2), selected = 1),
                       conditionalPanel("input.population == 1",
                          numericInput("N", label = h4("What is the total number of clinics supporting adults in your country?"), 
                                       300, min=1, step=1),
@@ -53,10 +53,10 @@ ui <- dashboardPage(
                                       20000, min=1, step=1)
                       ),
                       conditionalPanel("input.population == 2",
-                         numericInput("N", label = h4("What is the total number of clinics supporting children/adolescents 
+                         numericInput("N", label = h4("What is the total number of clinics supporting children and adolescents 
                                                       in your country?"), 
                                       300, min=1, step=1),
-                         numericInput("M", label = h4("What is the total number of children/adolescents on ART 
+                         numericInput("M", label = h4("What is the total number of children and adolescents on ART 
                                                       in your country?"), 
                                       20000, min=1, step=1)
                       )
@@ -75,7 +75,7 @@ ui <- dashboardPage(
                                                     60, min=0, max=100, step=1)
                       ),
                       conditionalPanel("input.population == 2",
-                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of children/adolescents 
+                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of children and adolescents 
                                        on ART who are on DTG-containing regimens (%).")), 
                                                     60, min=0, max=100, step=1)
                       )
@@ -399,14 +399,14 @@ server <- function(input, output) {
   # Table of user-specified parameter values
   assumptions_DTG <- eventReactive(input$submit, {
     data.frame(
-      Assumptions = c("Expected prevalence of VS for patients on DTG-containing regimens",
+      Assumptions = c("Expected prevalence of viral suppression for patients on DTG-containing regimens",
                       "Desired absolute precision (95% CI half-width)",
-                      "Expected prevalence of VS for patients overall",
+                      "Expected prevalence of viral suppression for patients overall",
                       "Desired absolute precision (95% CI half-width)",
                       "Number of clinics sampled",
                       "Total number of clinics",
                       "Total number of individuals on ART",
-                      "ICC",
+                      "Intracluster correlation coefficient",
                       "Design effect due to imperfect weights",
                       # "Significance Level",
                       "Viral load testing failure rate"),
@@ -442,12 +442,12 @@ server <- function(input, output) {
           # # Table of user-specified parameter values
           # assumptions_O <- eventReactive(input$submit, {
           #   data.frame(
-          #     Assumptions = c("Expected prevalence of VS for patients overall",
+          #     Assumptions = c("Expected prevalence of viral suppression for patients overall",
           #                     "Desired absolute precision (95% CI half-width)",
           #                     "Number of clinics sampled",
           #                     "Total number of clinics",
           #                     "Total number of individuals on ART",
-          #                     "ICC",
+          #                     "Intracluster correlation coefficient",
           #                     "Design effect due to imperfect weights",
           #                     # "Significance Level",
           #                     "Laboratory Failure Rate"),
@@ -553,7 +553,8 @@ server <- function(input, output) {
     M_ADR <- ceiling(n*m*(1-labFail)*(1-genoFail)*q_VNS)
     
     k_eff_ADR <- M_ADR/DE
-    prec <- qt(1-alpha/2, df=n-1)*sqrt(prev*(1-prev)/k_eff_ADR)
+    # margin of error uses t-distribution with df = n-2 to account for 2 strata: DTG and non-DTG
+    prec <- qt(1-alpha/2, df=n-2)*sqrt(prev*(1-prev)/k_eff_ADR)
     
     return(round(prec, 3))
   }
@@ -608,10 +609,10 @@ server <- function(input, output) {
   # Table of user-specified parameter values
   assumptions_ADR_DTG <- eventReactive(input$submit, {
     data.frame(
-      Assumptions = c("Expected prevalence of DTG-specific ADR for patients on DTG-containing regimens with VNS",
-                      "VS sample size for patients on DTG-containing regimens",
+      Assumptions = c("Expected prevalence of DTG-specific ADR for patients taking DTG-containing regimens with viral non-suppression",
+                      "Sample size for estimating the prevalence of viral suppression among patients taking DTG-containing regimens",
                       "Viral load testing failure rate",
-                      "Expected proportion of patients with VNS on DTG-containing regimens",
+                      "Expected proportion of patients with viral non-suppression on DTG-containing regimens",
                       "Genotyping testing failure rate",
                       "Number of clinics sampled",
                       "Design effect"),
@@ -629,10 +630,10 @@ server <- function(input, output) {
   # Table of user-specified parameter values
   assumptions_ADR_O <- eventReactive(input$submit, {
     data.frame(
-      Assumptions = c("Expected prevalence of any ADR for all patients with VNS",
-                      "VS sample size for all patients",
+      Assumptions = c("Expected prevalence of any ADR among all patients with viral non-suppression",
+                      "Sample size for estimating the prevalence of viral suppression among all patients",
                       "Viral load testing failure rate",
-                      "Expected percentage of patients with VNS",
+                      "Expected percentage of patients with viral non-suppression",
                       "Genotyping testing failure rate",
                       "Number of clinics sampled",
                       "Design effect"),

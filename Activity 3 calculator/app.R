@@ -41,62 +41,47 @@ ui <- dashboardPage(
               useShinyjs(),
               fluidPage(
                 fluidRow(
-                  box(title = "Total number of clinics and patients on ART", width = 12, 
+                  box(title = "Total number of clinics and people receiving ART", width = 12, 
                       status = "warning", solidHeader = TRUE,
                       radioButtons("population", label = h4("What is the survey population of interest?"),
                                    choices = list("Adults" = 1, 
                                                   "Children and adolescents" = 2), selected = 1),
                       conditionalPanel("input.population == 1",
-                         numericInput("N", label = h4("What is the total number of clinics supporting adults in your country?"), 
+                         numericInput("N", label = h4("What is the total number of clinics providing ART to adults in your country?"), 
                                       300, min=1, step=1),
-                         numericInput("M", label = h4("What is the total number of adults on ART in your country?"), 
+                         numericInput("M", label = h4("What is the total number of adults receiving ART in your country?"), 
                                       20000, min=1, step=1)
                       ),
                       conditionalPanel("input.population == 2",
-                         numericInput("N", label = h4("What is the total number of clinics supporting children and adolescents 
+                         numericInput("N", label = h4("What is the total number of clinics providing ART to children and adolescents 
                                                       in your country?"), 
                                       300, min=1, step=1),
-                         numericInput("M", label = h4("What is the total number of children and adolescents on ART 
+                         numericInput("M", label = h4("What is the total number of children and adolescents receiving ART 
                                                       in your country?"), 
                                       20000, min=1, step=1)
                       )
-                            # numericInput("N", label = h4("What is the total number of clinics in your country?"), 300,
-                            #              min=1, step=1),
-                            # numericInput("M", label = h4("What is the total number of patients on ART in your country?"), 20000,
-                            #              min=1, step=1)
+
                   )
                 ),
                 fluidRow(
-                  box(title = "Percentage on DTG-containing regimens", width = 12, 
+                  box(title = "Percentage of people receiving dolutegravir-containing regimens", width = 12, 
                       status = "primary", solidHeader = TRUE,
                       conditionalPanel("input.population == 1",
-                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of adults on ART who are 
-                                                            on DTG-containing regimens (%).")), 
+                                       numericInput("q_DTG", label = h4(HTML("What is the national percentage of adults receiving 
+                                                                             ART who receive dolutegravir-containing regimens (%)?")), 
                                                     60, min=0, max=100, step=1)
                       ),
                       conditionalPanel("input.population == 2",
-                                       numericInput("q_DTG", label = h4(HTML("Input the national percentage of children and adolescents 
-                                       on ART who are on DTG-containing regimens (%).")), 
+                                       numericInput("q_DTG", label = h4(HTML("What is the national percentage of children and adolescents 
+                                                                             receiving ART who receive dolutegravir-containing regimens (%)?")), 
                                                     60, min=0, max=100, step=1)
                       )
-                            # numericInput("q_DTG", label = h4(HTML("Input the national percentage of individuals on ART who are 
-                            #                                       on DTG-containing regimens (%).")), 
-                            #              60, min=0, max=100, step=1)
+
                   )
                 ),
-                      # fluidRow(
-                      #   box(status = "warning", width = 12, title = "Finite population correction", solidHeader = TRUE,
-                      #       h4(htmlOutput("fpc_text")),
-                      #       radioButtons("fpc", label = h5("The finite population correction will reduce the required sample 
-                      #       size and is recommended if the total number of clinics or the total number of patients on ART is small."), 
-                      #                    choices = list("Yes" = 1, "No" = 2), selected = 1))
-                      #   
-                      # ),
+
                 fluidRow(
                   box(title = "Number of clinics to be sampled", width = 12, status = "success", solidHeader = TRUE,
-                          # numericInput("n", label = h4(HTML("Input the number of clinics to sample. 
-                          #                                   Must be a whole number")), 
-                          #              20, min=1, step=1),
                       uiOutput("minimum_clinics"),
                       h4(htmlOutput("warning"))
                   )
@@ -115,52 +100,43 @@ ui <- dashboardPage(
                 column(6, box(title = "Assumptions for Sample Size Calculations", status = "warning", collapsible = TRUE, width = NULL, solidHeader = TRUE,
                               # h5(htmlOutput("table_text")),
                               tableOutput("values_DTG"))),
-                column(6, 
-                       fluidRow(box(title = "Sample Size for DTG Case Specimens", status = "primary",
-                          collapsible = TRUE, width = NULL, solidHeader = TRUE,
-                          # Display sample size required for DTG
-                          h5(htmlOutput("text_DTG")),
-                          h4(htmlOutput("clinic_DTG")),
-                          h4(htmlOutput("sample_size_DTG"))
-                      )),
-                fluidRow(box(title = "Sample Size for Non-DTG Case Specimens", status = "primary",
-                          collapsible = TRUE, width = NULL, solidHeader = TRUE,
-                          # Display sample size required for non-DTG
-                          h5(htmlOutput("text_non")), 
-                          h4(htmlOutput("prop_non")),
-                          h4(htmlOutput("clinic_non")),
-                          h4(htmlOutput("sample_size_non"))
-                      )),
-                fluidRow(box(title = "Total Sample Size", status = "primary",
-                          collapsible = TRUE, width = NULL, solidHeader = TRUE,
-                          # Display total sample size required
-                          h5(htmlOutput("text_total")),
-                          h4(htmlOutput("clinic_total")),
-                          h4(htmlOutput("sample_size_total"))
-                      ))
+                column(6, fluidRow(box(title = textOutput("title_ss_DTG"), status = "primary",
+                                       collapsible = TRUE, width = NULL, solidHeader = TRUE,
+                                       # Display sample size required for DTG
+                                       h5(htmlOutput("text_DTG")),
+                                       h4(htmlOutput("clinic_DTG")),
+                                       h4(htmlOutput("sample_size_DTG"))
+                )),
+                fluidRow(box(title = textOutput("title_ss_non"), status = "primary",
+                             collapsible = TRUE, width = NULL, solidHeader = TRUE,
+                             # Display sample size required for non-DTG
+                             h5(htmlOutput("text_non")),
+                             h4(htmlOutput("prop_non")),
+                             h4(htmlOutput("clinic_non")),
+                             h4(htmlOutput("sample_size_non"))
+                )),
+                fluidRow(box(title = "Total sample size", status = "primary",
+                             collapsible = TRUE, width = NULL, solidHeader = TRUE,
+                             # Display total sample size required
+                             h5(htmlOutput("text_total")),
+                             h4(htmlOutput("clinic_total")),
+                             h4(htmlOutput("sample_size_total"))
+                ))
               )),
-                  
-                      # box(title = "Overall Estimated Sample Size", status = "primary", 
-                      #     collapsible = TRUE, width = 6, solidHeader = TRUE,
-                      #     # Display table of assumptions and sample size required for overall
-                      #     h5(htmlOutput("text_O")), br(),
-                      #     tableOutput("values_O"),
-                      #     h4(htmlOutput("clinic_O")),
-                      #     h4(htmlOutput("sample_size_O"))
-                      # )
+
               hr(), 
               fluidRow(align = "center", h3("Resulting Anticipated Precision for the ADR Estimates")),
               br(),
               br(),
 
               fluidRow(
-                box(title = "Precision for DTG ADR Estimates", status = "success",
+                box(title = "Precision for dolutegravir ADR estimates", status = "success",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     tableOutput("values_ADR_DTG"),
                     h4(htmlOutput("prec_ADR_DTG"))
                 ),
                 
-                box(title = "Precision for Overall ADR Estimates", status = "success",
+                box(title = "Precision for overall ADR estimates", status = "success",
                     collapsible = TRUE, width = 6, solidHeader = TRUE,
                     tableOutput("values_ADR_O"),
                     h4(htmlOutput("prec_ADR_O"))
@@ -195,10 +171,7 @@ server <- function(input, output) {
   ICC <- eventReactive(input$submit, {# Previous ICC <- 0.004278927
     ifelse(input$option == 1, 0.09, 0.06)
   })     
-  
-      # # Define N and M according to whether FPC is to be used. If not, N=100000 and M=100000000
-      # N <- reactive({ifelse(input$fpc == 1, input$N, 100000)})
-      # M <- reactive({ifelse(input$fpc == 1, input$M, 100000000)})
+
   
   # Function to calculate sample size per clinic using FPC and Wald-type intervals
   # Returns number of samples per clinic and effective sample size
@@ -240,43 +213,6 @@ server <- function(input, output) {
     return(N)
   }
   
-
-  
-          # ### Obtain the minimum required number of clinics to ensure the total sample size is under 1500
-          # get_min_clinics <- function(prev_VS_DTG, prev_VS_O, prec_VS_DTG, prec_VS_O, 
-          #                             n, N, M, q, ICC, DE_info, labFail, alpha) {
-          #   
-          #   m_DTG <- calcSampleSize(prev=prev_VS_DTG, CI=prec_VS_DTG, n=n, N=N, M=M,
-          #                           q=q, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
-          #   m_O <- calcSampleSize(prev=prev_VS_O, CI=prec_VS_O, n=n, N=N, M=M,
-          #                         q=1, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
-          #   m_DTG_mod <- max(m_DTG[[1]], ceiling(m_O[[1]]*q))
-          #   m_nonDTG <- ceiling(m_O[[1]]*(1-q))
-          #   m_total <- ceiling(m_nonDTG + m_DTG_mod)
-          #   total_SS <- m_total * n
-          #   min_clinics_DTG <- ceiling((N+M)*ICC / M / (1/(DE_info*m_DTG[[2]]) + ICC/N))
-          #   min_clinics_O <- ceiling((N+M)*ICC / M / (1/(DE_info*m_O[[2]]) + ICC/N))
-          #   min_clinics <- max(min_clinics_DTG, min_clinics_O)
-          #   n <- min_clinics
-          #   
-          #   while(any(c(m_DTG[[1]], m_O[[1]], m_nonDTG, m_total) < 0) | total_SS > 1500) {
-          #     n <- n + 1  # increment the number of clinics to be sampled
-          #     
-          #     m_DTG <- calcSampleSize(prev=prev_VS_DTG, CI=prec_VS_DTG, n=n, N=N, M=M,
-          #                             q=q, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
-          #     m_O <- calcSampleSize(prev=prev_VS_O, CI=prec_VS_O, n=n, N=N, M=M,
-          #                           q=1, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
-          #     m_DTG_mod <- max(m_DTG[[1]], ceiling(m_O[[1]]*q))
-          #     m_nonDTG <- ceiling(m_O[[1]]*(1-q))
-          #     m_total <- ceiling(m_nonDTG + m_DTG_mod)
-          #     total_SS <- m_total * n
-          #   }
-          #   
-          #   min_clinics <- n
-          #   
-          #   return(list(min_clinics, m_DTG_mod, m_O[[1]], m_nonDTG, m_total, total_SS))
-          # }
-  
   
   #========================================================================================
   # Check if number of clinics to sample is larger than required minimum number of clinics
@@ -292,18 +228,14 @@ server <- function(input, output) {
                                                          N=input$N, M=input$M, q=q_DTG(), ICC=0.06, 
                                                          DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
-        # values <- reactiveValues(revised = FALSE)
-        # revised <- FALSE
-  
   output$minimum_clinics <- renderUI({
-            # if (min_clinics()[[1]] > input$n) {
-            #   revised <- TRUE
+
     tagList(
       # a(HTML("Number of clinics to be sampled is too small."), style = "color:red; font-size: 20px"),
       radioButtons("option", label = h4(HTML(paste0("<strong> Can at least ", "<span style='color:red'>", 
                                                     min_clinics()[[1]], "</span>",
-                                      " clinics be sampled? </strong> This is the minimum number of clinics necessary and achieves 
-                                      a total sample size less than or equal to 1500."))),
+                                      " clinics be sampled? </strong> This is the minimum number of clinics 
+                                      necessary to achieve a total sample size less than or equal to 1500."))),
                    choices = list("Yes (ideal and more conservative option that accounts for a higher level of 
                                   clustering)." = 1, 
                                   "No (less ideal and less conservative option that accounts for a lower level 
@@ -398,14 +330,40 @@ server <- function(input, output) {
   ### Output tables
   # Table of user-specified parameter values
   assumptions_DTG <- eventReactive(input$submit, {
-    data.frame(
-      Assumptions = c("Expected prevalence of viral suppression for patients on DTG-containing regimens",
+    if(input$population == 1) {
+      data.frame(
+        Assumptions = c("Expected prevalence of viral suppression for adults receiving dolutegravir-containing regimens",
+                        "Desired absolute precision (95% CI half-width)",
+                        "Expected prevalence of viral suppression for adults receiving ART (overall)",
+                        "Desired absolute precision (95% CI half-width)",
+                        "Number of clinics sampled",
+                        "Total number of clinics",
+                        "Total number of adults receiving ART",
+                        "Intracluster correlation coefficient",
+                        "Design effect due to imperfect weights",
+                        # "Significance Level",
+                        "Viral load testing failure rate"),
+        Value = as.character(c(paste0(prev_VS_DTG*100, "%"),
+                               paste0("\u00B1", prec_VS_DTG*100, "%"),
+                               paste0(prev_VS_O*100, "%"),
+                               paste0("\u00B1", prec_VS_O*100, "%"),
+                               n_clinics(),
+                               input$N,
+                               input$M,
+                               ICC(),
+                               DE_info,
+                               # alpha,
+                               paste0(labFail*100, "%"))),
+        stringsAsFactors = FALSE)
+    } else {
+      data.frame(
+      Assumptions = c("Expected prevalence of viral suppression for children and adolescents receiving dolutegravir-containing regimens",
                       "Desired absolute precision (95% CI half-width)",
-                      "Expected prevalence of viral suppression for patients overall",
+                      "Expected prevalence of viral suppression for children and adolescents receiving ART (overall)",
                       "Desired absolute precision (95% CI half-width)",
                       "Number of clinics sampled",
                       "Total number of clinics",
-                      "Total number of individuals on ART",
+                      "Total number of children and adolescents receiving ART",
                       "Intracluster correlation coefficient",
                       "Design effect due to imperfect weights",
                       # "Significance Level",
@@ -422,6 +380,7 @@ server <- function(input, output) {
                              # alpha,
                              paste0(labFail*100, "%"))),
       stringsAsFactors = FALSE)
+    }
   })
   
   # Render table
@@ -432,54 +391,18 @@ server <- function(input, output) {
     "Assumptions used to calculate sample sizes."
   })
   
-  output$text_DTG <- renderText({
-    "Sample sizes necessary for estimating the prevalence of viral suppression
-    among patients taking DTG-containing regimens."
+  # Text for box title on DTG sample size
+  output$title_ss_DTG <- renderText({
+    ifelse(input$population == 1, "Sample size for adults receiving dolutegravir-containing regimens",
+           "Sample size for children and adolescents receiving dolutegravir-containing regimens")
   })
   
-  
-          # ### Output tables
-          # # Table of user-specified parameter values
-          # assumptions_O <- eventReactive(input$submit, {
-          #   data.frame(
-          #     Assumptions = c("Expected prevalence of viral suppression for patients overall",
-          #                     "Desired absolute precision (95% CI half-width)",
-          #                     "Number of clinics sampled",
-          #                     "Total number of clinics",
-          #                     "Total number of individuals on ART",
-          #                     "Intracluster correlation coefficient",
-          #                     "Design effect due to imperfect weights",
-          #                     # "Significance Level",
-          #                     "Laboratory Failure Rate"),
-          #     Value = as.character(c(paste0(prev_VS_O*100, "%"),
-          #                            paste0("\u00B1", prec_VS_O*100, "%"),
-          #                            n_clinics(),
-          #                            input$N,
-          #                            input$M,
-          #                            ICC(),
-          #                            DE_info,
-          #                            # alpha,
-          #                            paste0(labFail*100, "%"))),
-          #     stringsAsFactors = FALSE)
-          # })
-          # 
-          # # Render table
-          # output$values_O <- renderTable({assumptions_O()})
-          # 
-          # # Sample size output
-          # output$clinic_O <- renderText({
-          #   paste0("Sample size per clinic, m<sub>overall</sub>: ",
-          #          a(sample_size_O_clinic()[[1]], style = "color:red"))
-          # })
-          # 
-          # output$sample_size_O <- renderText({
-          #   paste0("Sample size across clinics: ",
-          #          a(sample_size_O(), style = "color:red"))
-          # })
-          # 
-          # output$text_O <- renderText({
-          #   "Sample sizes necessary for estimating the prevalence of viral suppression among all patients."
-          # })
+  output$text_DTG <- renderText({
+    ifelse(input$population == 1, 
+           "Sample sizes necessary for estimating the prevalence of viral suppression among adults taking dolutegravir-containing regimens.",
+           "Sample sizes necessary for estimating the prevalence of viral suppression among children and adolescents taking dolutegravir-containing regimens."
+           )
+  })
   
   
   ### Non-DTG and total calculations
@@ -497,6 +420,13 @@ server <- function(input, output) {
   
   sample_size_total <- eventReactive(input$submit, {sample_size_total_clinic()*n_clinics()})
   
+  
+  # Text for box title on non-DTG sample size
+  output$title_ss_non <- renderText({
+    ifelse(input$population == 1, "Sample size for adults receiving non-dolutegravir-containing regimens",
+           "Sample size for children and adolescents receiving non-dolutegravir-containing regimens")
+  })
+  
   # Text output for non-DTG and total
   output$clinic_non <- renderText({
     paste0("Sample size per clinic, m<sub>nonDTG</sub>: ",
@@ -509,14 +439,22 @@ server <- function(input, output) {
   })
   
   output$text_non <- renderText({
-    "Sample sizes necessary from patients taking non-DTG-containing regimens to ensure sufficient sample 
-    size for overall estimate of ADR."
+    ifelse(input$population == 1,
+           "Sample sizes necessary from adults taking non-dolutegravir-containing regimens to ensure sufficient sample size for overall estimates.",
+           "Sample sizes necessary from children and adolescents taking non-dolutegravir-containing regimens to ensure sufficient sample size for overall estimates."
+           )
   })
   
   output$prop_non <- renderText({
-    paste0("Percentage of ART patients on non-DTG-containing regimens: ", 
-           a(paste0(q_nonDTG()*100, "%"), style = "color:blue"))
+    ifelse(input$population == 1, 
+           paste0("Percentage of adults receiving non-dolutegravir-containing regimens: ", 
+                  a(paste0(q_nonDTG()*100, "%"), style = "color:blue")),
+           paste0("Percentage of children and adolescents receiving non-dolutegravir-containing regimens: ", 
+                  a(paste0(q_nonDTG()*100, "%"), style = "color:blue"))
+           )
   })
+  
+  
   
   ## Calculating total sample sizes required
   output$clinic_total <- renderText({
@@ -598,53 +536,99 @@ server <- function(input, output) {
   
   # Render output
   output$prec_ADR_DTG <- renderText({
-    paste0("Precision for ADR estimate of DTG-specific resistance among patients on DTG-containing regimens: ",
-           a(paste0("\u00B1", prec_ADR_DTG()*100, "%"), style = "color:red"))
+    ifelse(input$population == 1,
+      paste0("Precision for DTG-specific ADR estimate among adults receiving dolutegravir-containing regimens with viral non-suppression: ",
+           a(paste0("\u00B1", prec_ADR_DTG()*100, "%"), style = "color:red")),
+      paste0("Precision for DTG-specific ADR estimate among children and adolescents receiving dolutegravir-containing regimens with viral non-suppression: ",
+             a(paste0("\u00B1", prec_ADR_DTG()*100, "%"), style = "color:red"))
+    )
   })
   output$prec_ADR_O <- renderText({
-    paste0("Precision for ADR estimate of overall resistance among all patients: ",
-           a(paste0("\u00B1", prec_ADR_O()*100, "%"), style = "color:red"))
+    ifelse(input$population == 1, 
+           paste0("Precision for ADR estimate among all adults receiving ART with viral non-suppression: ",
+           a(paste0("\u00B1", prec_ADR_O()*100, "%"), style = "color:red")),
+           paste0("Precision for ADR estimate among all children and adolescents receiving ART with viral non-suppression: ",
+                  a(paste0("\u00B1", prec_ADR_O()*100, "%"), style = "color:red"))
+    )
   })
   
   # Table of user-specified parameter values
   assumptions_ADR_DTG <- eventReactive(input$submit, {
-    data.frame(
-      Assumptions = c("Expected prevalence of DTG-specific ADR for patients taking DTG-containing regimens with viral non-suppression",
-                      "Sample size for estimating the prevalence of viral suppression among patients taking DTG-containing regimens",
-                      "Viral load testing failure rate",
-                      "Expected proportion of patients with viral non-suppression on DTG-containing regimens",
-                      "Genotyping testing failure rate",
-                      "Number of clinics sampled",
-                      "Design effect"),
-      Value = as.character(c(paste0(prev_ADR_DTG*100, "%"),
-                             sample_size_DTG(),
-                             paste0(labFail*100, "%"),
-                             paste0((1-prev_VS_DTG)*100, "%"),
-                             paste0(genoFail*100, "%"),
-                             n_clinics(),
-                             DE)),
-      stringsAsFactors = FALSE)
+    if(input$population == 1) {
+      data.frame(
+        Assumptions = c("Expected prevalence of dolutegravir-specific ADR for adults taking dolutegravir-containing regimens with viral non-suppression",
+                        "Sample size for estimating the prevalence of viral suppression among adults taking dolutegravir-containing regimens",
+                        "Viral load testing failure rate",
+                        "Expected proportion of adults with viral non-suppression receiving dolutegravir-containing regimens",
+                        "Genotyping testing failure rate",
+                        "Number of clinics sampled",
+                        "Design effect"),
+        Value = as.character(c(paste0(prev_ADR_DTG*100, "%"),
+                               sample_size_DTG(),
+                               paste0(labFail*100, "%"),
+                               paste0((1-prev_VS_DTG)*100, "%"),
+                               paste0(genoFail*100, "%"),
+                               n_clinics(),
+                               DE)),
+        stringsAsFactors = FALSE)
+    } else {
+      data.frame(
+        Assumptions = c("Expected prevalence of dolutegravir-specific ADR for children and adolescents taking dolutegravir-containing regimens with viral non-suppression",
+                        "Sample size for estimating the prevalence of viral suppression among children and adolescents taking dolutegravir-containing regimens",
+                        "Viral load testing failure rate",
+                        "Expected proportion of children and adolescents with viral non-suppression receiving dolutegravir-containing regimens",
+                        "Genotyping testing failure rate",
+                        "Number of clinics sampled",
+                        "Design effect"),
+        Value = as.character(c(paste0(prev_ADR_DTG*100, "%"),
+                               sample_size_DTG(),
+                               paste0(labFail*100, "%"),
+                               paste0((1-prev_VS_DTG)*100, "%"),
+                               paste0(genoFail*100, "%"),
+                               n_clinics(),
+                               DE)),
+        stringsAsFactors = FALSE)
+    }  
   })
   
   
   # Table of user-specified parameter values
   assumptions_ADR_O <- eventReactive(input$submit, {
-    data.frame(
-      Assumptions = c("Expected prevalence of any ADR among all patients with viral non-suppression",
-                      "Sample size for estimating the prevalence of viral suppression among all patients",
-                      "Viral load testing failure rate",
-                      "Expected percentage of patients with viral non-suppression",
-                      "Genotyping testing failure rate",
-                      "Number of clinics sampled",
-                      "Design effect"),
-      Value = as.character(c(paste0(prev_ADR_O*100, "%"),
-                             sample_size_total(),
-                             paste0(labFail*100, "%"),
-                             paste0((1-prev_VS_O)*100, "%"),
-                             paste0(genoFail*100, "%"),
-                             n_clinics(),
-                             DE)),
-      stringsAsFactors = FALSE)
+    if(input$population == 1) {
+      data.frame(
+        Assumptions = c("Expected prevalence of any ADR among all adults with viral non-suppression",
+                        "Sample size for estimating the prevalence of viral suppression among all adults receiving ART",
+                        "Viral load testing failure rate",
+                        "Expected percentage of adults receiving ART with viral non-suppression",
+                        "Genotyping testing failure rate",
+                        "Number of clinics sampled",
+                        "Design effect"),
+        Value = as.character(c(paste0(prev_ADR_O*100, "%"),
+                               sample_size_total(),
+                               paste0(labFail*100, "%"),
+                               paste0((1-prev_VS_O)*100, "%"),
+                               paste0(genoFail*100, "%"),
+                               n_clinics(),
+                               DE)),
+        stringsAsFactors = FALSE)
+    } else {
+      data.frame(
+        Assumptions = c("Expected prevalence of any ADR among all children and adolescents with viral non-suppression",
+                        "Sample size for estimating the prevalence of viral suppression among all children and adolescents receiving ART",
+                        "Viral load testing failure rate",
+                        "Expected percentage of children and adolescents receiving ART with viral non-suppression",
+                        "Genotyping testing failure rate",
+                        "Number of clinics sampled",
+                        "Design effect"),
+        Value = as.character(c(paste0(prev_ADR_O*100, "%"),
+                               sample_size_total(),
+                               paste0(labFail*100, "%"),
+                               paste0((1-prev_VS_O)*100, "%"),
+                               paste0(genoFail*100, "%"),
+                               n_clinics(),
+                               DE)),
+        stringsAsFactors = FALSE)
+    }  
   })
   
   # Render table

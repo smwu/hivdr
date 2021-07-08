@@ -197,8 +197,8 @@ server <- function(input, output) {
       m_O <- calcSampleSize(prev=prev_VS_O, CI=prec_VS_O, n=n, N=N, M=M,
                             q=1, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
       
-      min_clinics_DTG <- ceiling((N+M)*ICC / M / (1/(DE_info*m_DTG[[2]]) + ICC/N))
-      min_clinics_O <- ceiling((N+M)*ICC / M / (1/(DE_info*m_O[[2]]) + ICC/N))
+      min_clinics_DTG <- ceiling(((N+M*q)*ICC-N) / (M*q) / (1/(DE_info*m_DTG[[2]]) + ICC/N))
+      min_clinics_O <- ceiling(((N+M)*ICC-N) / M / (1/(DE_info*m_O[[2]]) + ICC/N))
       min_clinics <- max(min_clinics_DTG, min_clinics_O)
       
       m_DTG_mod <- max(m_DTG[[1]], ceiling(m_O[[1]]*q))

@@ -46,36 +46,14 @@ ui <- dashboardPage(
                       radioButtons("population", label = h4("What is the survey population of interest?"),
                                    choices = list("Adults" = 1, 
                                                   "Children and adolescents" = 2), selected = 1),
-                      conditionalPanel("input.population == 1",
-                         numericInput("N", label = h4("What is the total number of clinics providing ART to adults in your country?"), 
-                                      300, min=1, step=1),
-                         numericInput("M", label = h4("What is the total number of adults receiving ART in your country?"), 
-                                      20000, min=1, step=1)
-                      ),
-                      conditionalPanel("input.population == 2",
-                         numericInput("N", label = h4("What is the total number of clinics providing ART to children and adolescents 
-                                                      in your country?"), 
-                                      300, min=1, step=1),
-                         numericInput("M", label = h4("What is the total number of children and adolescents receiving ART 
-                                                      in your country?"), 
-                                      20000, min=1, step=1)
-                      )
-
+                      uiOutput("N"),
+                      uiOutput("M")
                   )
                 ),
                 fluidRow(
                   box(title = "Percentage of people receiving dolutegravir-containing regimens", width = 12, 
                       status = "primary", solidHeader = TRUE,
-                      conditionalPanel("input.population == 1",
-                                       numericInput("q_DTG", label = h4(HTML("What is the national percentage of adults receiving 
-                                                                             ART who receive dolutegravir-containing regimens (%)?")), 
-                                                    60, min=0, max=100, step=1)
-                      ),
-                      conditionalPanel("input.population == 2",
-                                       numericInput("q_DTG", label = h4(HTML("What is the national percentage of children and adolescents 
-                                                                             receiving ART who receive dolutegravir-containing regimens (%)?")), 
-                                                    60, min=0, max=100, step=1)
-                      )
+                      uiOutput("q_DTG")
 
                   )
                 ),
@@ -168,9 +146,6 @@ server <- function(input, output) {
   alpha <- 0.05
   labFail <- 0.1
   DE_info <- 1.5
-  ICC <- eventReactive(input$submit, {# Previous ICC <- 0.004278927
-    ifelse(input$option == 1, 0.09, 0.06)
-  })     
 
   
   # Function to calculate sample size per clinic using FPC and Wald-type intervals
@@ -213,26 +188,42 @@ server <- function(input, output) {
     return(N)
   }
   
+  #========================================================================================
+  # Get input values depending on population (adults vs. children/adolescents)
+  pop <- reactive({ifelse(input$population==1, "adults", "children and adolescents")})
+  output$N <- renderUI({
+    numericInput("N", label = h4(HTML(paste0("What is the total number of clinics providing ART to ", pop(), " in your country?"))), 
+                 300, min=1, step=1)
+  })
+  output$M <- renderUI({
+    numericInput("M", label = h4(HTML(paste0("What is the total number of ", pop(), " receiving ART in your country?"))), 
+                 20000, min=1, step=1)
+  })
+  output$q_DTG <- renderUI({
+    numericInput("q_DTG", label = h4(HTML("What is the national percentage of ", pop(), " receiving ART who receive dolutegravir-containing regimens (%)?")), 
+                 60, min=0, max=100, step=1)
+  })
+  
   
   #========================================================================================
   # Check if number of clinics to sample is larger than required minimum number of clinics
   # Option 1 with ICC=0.09
-  min_clinics <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O, 
-                                                     prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O, 
-                                                     N=input$N, M=input$M, q=q_DTG(), ICC=0.09, 
-                                                     DE_info=DE_info, labFail=labFail, alpha=alpha)})
+  min_clinics <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O,
+                                                                       prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O,
+                                                                       N=input$N, M=input$M, q=q_DTG(), ICC=0.09,
+                                                                       DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
   # Option 2 with ICC=0.06
-  min_clinics_op2 <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O, 
-                                                         prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O, 
-                                                         N=input$N, M=input$M, q=q_DTG(), ICC=0.06, 
-                                                         DE_info=DE_info, labFail=labFail, alpha=alpha)})
+  min_clinics_op2 <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O,
+                                                                           prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O,
+                                                                           N=input$N, M=input$M, q=q_DTG(), ICC=0.06,
+                                                                           DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
   output$minimum_clinics <- renderUI({
 
     tagList(
       # a(HTML("Number of clinics to be sampled is too small."), style = "color:red; font-size: 20px"),
-      radioButtons("option", label = h4(HTML(paste0("<strong> Can at least ", "<span style='color:red'>", 
+      radioButtons("option", label = h4(HTML(paste0("<strong> Can at least ","<span style='color:red'>", 
                                                     min_clinics()[[1]], "</span>",
                                       " clinics be sampled? </strong> This is the minimum number of clinics 
                                       necessary to achieve a total sample size less than or equal to 1500."))),
@@ -274,6 +265,11 @@ server <- function(input, output) {
       } 
     }
   })
+  
+  # ICC based on whether option 1 or 2 was chosen
+  ICC <- eventReactive(input$submit, {# Previous ICC <- 0.004278927
+    ifelse(input$option == 1, 0.09, 0.06)
+  }) 
   
   # Define number of clinics sampled as "n" or "n_sampled"
   n_clinics <- eventReactive(input$submit, {

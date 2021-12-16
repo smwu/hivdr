@@ -1,9 +1,9 @@
 #==========================================================#
-# Shiny App for HIVDR Sample Size Calculations
+# Shiny App for HIVDR Sample Size Calculations for the
+# Clinic-Based Method
 # 
 # Results displayed at 
-# https://worldhealthorg.shinyapps.io/ADR_LabBasedMethod_2/
-# https://smwu.shinyapps.io/HIVDR_2/
+# https://worldhealthorg.shinyapps.io/ADR_ClinicBasedMethod/
 #==========================================================#
 
 # Load required packages
@@ -46,8 +46,8 @@ ui <- dashboardPage(
                       radioButtons("population", label = h4("What is the survey population of interest?"),
                                    choices = list("Adults" = 1, 
                                                   "Children and adolescents" = 2), selected = 1),
-                      uiOutput("N"),
-                      uiOutput("M")
+                      uiOutput("C"),
+                      uiOutput("N")
                   )
                 ),
                 fluidRow(
@@ -150,10 +150,14 @@ server <- function(input, output) {
   
   # Function to calculate sample size per clinic using FPC and Wald-type intervals
   # Returns number of samples per clinic and effective sample size
-  calcSampleSize <- function(prev, CI, n, N, M, q, ICC, DE_info, labFail, alpha) {
+  calcSampleSize <- function(prev, CI, c, C, N, q, ICC, DE_info, labFail, alpha) {
     # q: proportion of the total eligible population that belongs to the subgroup of interest
-    k_eff <- (qt(1-alpha/2, df=n-1))^2*prev*(1-prev)/CI^2
-    m <- (1-ICC)/(n/(DE_info*k_eff) - ICC*(1-n/N) + N/(M*q)*(1-ICC))
+    # c: Number of clinics to be sampled
+    # C: Total number of clinics providing ART to the population of interest in the country
+    # N: Total number of individuals receiving ART in the country in the population of interest
+    
+    k_eff <- (qt(1-alpha/2, df=c-1))^2*prev*(1-prev)/CI^2
+    m <- (1-ICC)/(c/(DE_info*k_eff) - ICC*(1-c/C) + C/(N*q)*(1-ICC))
     m <- m/(1-labFail)
     return(list(m=ceiling(m), keff = ceiling(k_eff)))
   }
@@ -165,38 +169,38 @@ server <- function(input, output) {
   
   ### Obtain the minimum required number of clinics to ensure the total sample size is under 1500
   get_min_clinic_threshold <- function(prev_VS_DTG, prev_VS_O, prec_VS_DTG, prec_VS_O, 
-                                       N, M, q, ICC, DE_info, labFail, alpha) {
-    for (n in 2:N) {
-      m_DTG <- calcSampleSize(prev=prev_VS_DTG, CI=prec_VS_DTG, n=n, N=N, M=M,
+                                       C, N, q, ICC, DE_info, labFail, alpha) {
+    for (c in 2:C) {
+      m_DTG <- calcSampleSize(prev=prev_VS_DTG, CI=prec_VS_DTG, c=c, C=C, N=N,
                               q=q, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
-      m_O <- calcSampleSize(prev=prev_VS_O, CI=prec_VS_O, n=n, N=N, M=M,
+      m_O <- calcSampleSize(prev=prev_VS_O, CI=prec_VS_O, c=c, C=C, N=N,
                             q=1, ICC=ICC, DE_info=DE_info, labFail=labFail, alpha=alpha)
       
-      min_clinics_DTG <- ceiling(((N+M*q)*ICC-N) / (M*q) / (1/(DE_info*m_DTG[[2]]) + ICC/N))
-      min_clinics_O <- ceiling(((N+M)*ICC-N) / M / (1/(DE_info*m_O[[2]]) + ICC/N))
+      min_clinics_DTG <- ceiling(((C+N*q)*ICC-C) / (N*q) / (1/(DE_info*m_DTG[[2]]) + ICC/C))
+      min_clinics_O <- ceiling(((C+N)*ICC-C) / N / (1/(DE_info*m_O[[2]]) + ICC/C))
       min_clinics <- max(min_clinics_DTG, min_clinics_O)
       
       m_DTG_mod <- max(m_DTG[[1]], ceiling(m_O[[1]]*q))
       m_nonDTG <- ceiling(m_O[[1]]*(1-q))
       m_total <- ceiling(m_nonDTG + m_DTG_mod)
-      total_SS <- m_total * n
+      total_SS <- m_total * c
 
-      if ((n >= min_clinics) & (total_SS <= 1500)) {
-        return(n)
+      if ((c >= min_clinics) & (total_SS <= 1500)) {
+        return(c)
       }
     }
-    return(N)
+    return(C)
   }
   
   #========================================================================================
   # Get input values depending on population (adults vs. children/adolescents)
   pop <- reactive({ifelse(input$population==1, "adults", "children and adolescents")})
-  output$N <- renderUI({
-    numericInput("N", label = h4(HTML(paste0("What is the total number of clinics providing ART to ", pop(), " in your country?"))), 
+  output$C <- renderUI({
+    numericInput("C", label = h4(HTML(paste0("What is the total number of clinics providing ART to ", pop(), " in your country?"))), 
                  300, min=1, step=1)
   })
-  output$M <- renderUI({
-    numericInput("M", label = h4(HTML(paste0("What is the total number of ", pop(), " receiving ART in your country?"))), 
+  output$N <- renderUI({
+    numericInput("N", label = h4(HTML(paste0("What is the total number of ", pop(), " receiving ART in your country?"))), 
                  20000, min=1, step=1)
   })
   output$q_DTG <- renderUI({
@@ -210,13 +214,13 @@ server <- function(input, output) {
   # Option 1 with ICC=0.09
   min_clinics <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O,
                                                                        prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O,
-                                                                       N=input$N, M=input$M, q=q_DTG(), ICC=0.09,
+                                                                       C=input$C, N=input$N, q=q_DTG(), ICC=0.09,
                                                                        DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
   # Option 2 with ICC=0.06
   min_clinics_op2 <- reactive({get_min_clinic_threshold(prev_VS_DTG=prev_VS_DTG, prev_VS_O=prev_VS_O,
                                                                            prec_VS_DTG=prec_VS_DTG, prec_VS_O=prec_VS_O,
-                                                                           N=input$N, M=input$M, q=q_DTG(), ICC=0.06,
+                                                                           C=input$C, N=input$N, q=q_DTG(), ICC=0.06,
                                                                            DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
   output$minimum_clinics <- renderUI({
@@ -271,20 +275,21 @@ server <- function(input, output) {
     ifelse(input$option == 1, 0.09, 0.06)
   }) 
   
-  # Define number of clinics sampled as "n" or "n_sampled"
+  # Define number of clinics sampled as "c" or "n_sampled"
   n_clinics <- eventReactive(input$submit, {
     ifelse(input$option == 1, input$n_sampled, input$n_sampled_2)
-    # ifelse(min_clinics()[[1]] > input$n, input$n_sampled, input$n)
+    # ifelse(min_clinics()[[1]] > input$c, input$n_sampled, input$c)
   })
   
   
-  #================================== Sample Size Outputs =========================================
+  #===========================================================================
+  # Sample Size Outputs
   
   ### DTG 
   
   # Calculate sample size
   sample_size_DTG_clinic <- eventReactive(input$submit, {calcSampleSize(prev=prev_VS_DTG, CI=prec_VS_DTG, 
-                                                                        n=n_clinics(), N=input$N, M=input$M,
+                                                                        c=n_clinics(), C=input$C, N=input$N,
                                                                         q=q_DTG(), ICC=ICC(), 
                                                                         DE_info=DE_info, labFail=labFail, alpha=alpha)})
   
@@ -292,7 +297,7 @@ server <- function(input, output) {
   
   # Calculate sample size
   sample_size_O_clinic <- eventReactive(input$submit, {calcSampleSize(prev=prev_VS_O, CI=prec_VS_O,
-                                                                      n=n_clinics(), N=input$N, M=input$M,
+                                                                      c=n_clinics(), C=input$C, N=input$N,
                                                                       q=1, ICC=ICC(), 
                                                                       DE_info=DE_info, labFail=labFail, alpha=alpha)})
   sample_size_O <- eventReactive(input$submit, {sample_size_O_clinic()[[1]]*n_clinics()})
@@ -322,8 +327,8 @@ server <- function(input, output) {
            a(sample_size_DTG(), style = "color:red"))
   })
   
-  
-  ### Output tables
+  #=============================================================================
+  # Output tables
   # Table of user-specified parameter values
   assumptions_DTG <- eventReactive(input$submit, {
     if(input$population == 1) {
@@ -344,8 +349,8 @@ server <- function(input, output) {
                                paste0(prev_VS_O*100, "%"),
                                paste0("\u00B1", prec_VS_O*100, "%"),
                                n_clinics(),
+                               input$C,
                                input$N,
-                               input$M,
                                ICC(),
                                DE_info,
                                # alpha,
@@ -369,8 +374,8 @@ server <- function(input, output) {
                              paste0(prev_VS_O*100, "%"),
                              paste0("\u00B1", prec_VS_O*100, "%"),
                              n_clinics(),
+                             input$C,
                              input$N,
-                             input$M,
                              ICC(),
                              DE_info,
                              # alpha,
@@ -400,8 +405,8 @@ server <- function(input, output) {
            )
   })
   
-  
-  ### Non-DTG and total calculations
+  #=================================================================================
+  # Non-DTG and total calculations
   
   ## Calculating m_nonDTG and m_total
   sample_size_nonDTG_clinic <- eventReactive(input$submit, {
@@ -470,7 +475,7 @@ server <- function(input, output) {
   
   
   ##===========================================================================================================
-  ### Serve code for precision of ADR estimates for DTG and overall 
+  ### Server code for precision of ADR estimates for DTG and overall 
   
   # Define variables
   prev_ADR_DTG <- 0.035
@@ -478,57 +483,58 @@ server <- function(input, output) {
   genoFail <- 0.3
   DE <- 1.5
   
-  # Function to calculate the precision using FPC and Wald-type intervals using the simple DE=1.5 adjustment
-  calc_precision <- function(m, prev, n, q, q_VNS, DE, labFail, genoFail, alpha) {
-    # m: per-clinic sample size for VS estimate
-    # q: proportion of the total eligible population that belongs to the subgroup of interest
-    # q_VNS: proportion of individuals on ART with VNS
+  # Function to calculate the precision using Wald-type intervals using the simple DE=1.5 adjustment
+  calc_precision <- function(m, prev, c, q_VNS, DE, labFail, genoFail, alpha) {
+    # m: per-clinic sample size for viral suppression estimate
+    # prev: expected ADR prevalence
+    # c: number of clinics to be sampled
+    # q_VNS: expected proportion of individuals on ART with VNS
     
-    M_ADR <- ceiling(n*m*(1-labFail)*(1-genoFail)*q_VNS)
+    M_ADR <- ceiling(c*m*(1-labFail)*q_VNS*(1-genoFail))
     
     k_eff_ADR <- M_ADR/DE
-    # margin of error uses t-distribution with df = n-2 to account for 2 strata: DTG and non-DTG
-    prec <- qt(1-alpha/2, df=n-2)*sqrt(prev*(1-prev)/k_eff_ADR)
+    # margin of error uses t-distribution with df = c-2 to account for 2 strata: DTG and non-DTG
+    prec <- qt(1-alpha/2, df=c-2)*sqrt(prev*(1-prev)/k_eff_ADR)
     
     return(round(prec, 3))
   }
   
   ### Calculate precision
   prec_ADR_DTG <- eventReactive(input$submit, {calc_precision(m=sample_size_DTG_clinic_mod(), prev=prev_ADR_DTG,
-                                                              n=n_clinics(), 
-                                                              q=q_DTG(), q_VNS=1-prev_VS_DTG, DE=DE,
+                                                              c=n_clinics(), 
+                                                              q_VNS=1-prev_VS_DTG, DE=DE,
                                                               labFail=labFail, genoFail=genoFail, alpha=alpha)})
   prec_ADR_O <- eventReactive(input$submit, {calc_precision(m=sample_size_total_clinic(), prev=prev_ADR_O,
-                                                            n=n_clinics(),
-                                                            q=1, q_VNS=1-prev_VS_O, DE=DE,
+                                                            c=n_clinics(),
+                                                            q_VNS=1-prev_VS_O, DE=DE,
                                                             labFail=labFail, genoFail=genoFail, alpha=alpha)})
   
   
-  # # Function to calculate the precision using FPC and Wald-type intervals
-  # calc_precision <- function(m, prev, n, N, M, q, q_VNS, ICC, DE_info, labFail, genoFail, alpha) {
-  #   # m: per-clinic sample size for VS estimate
-  #   # q: proportion of the total eligible population that belongs to the subgroup of interest
-  #   # q_VNS: proportion of individuals on ART with VNS
-  #   
-  #   m_ADR <- ceiling(m*(1-labFail)*(1-genoFail)*q_VNS)
-  #   M_ADR <- ceiling(M*q*(1-labFail))
-  #   
-  #   DE_clust <- (1-m_ADR*N/M_ADR) + ((1-n/N)*m_ADR - (1-m_ADR*N/M_ADR))*ICC
-  #   k_eff_ADR <- n*m_ADR/(DE_info*DE_clust)
-  #   prec <- qt(1-alpha/2, df=n-1)*sqrt(prev*(1-prev)/k_eff_ADR)
-  #   
-  #   return(round(prec, 3))
-  # }
-  
-  # ### Calculate precision
-  # prec_ADR_DTG <- eventReactive(input$submit, {calc_precision(m=sample_size_DTG_clinic_mod(), prev=prev_ADR_DTG, 
-  #                                          n=n_clinics(), N=N(), M=M(),
-  #                                          q=q_DTG(), q_VNS=1-prev_VS_DTG, ICC=ICC, DE_info=DE_info, 
-  #                                          labFail=labFail, genoFail=genoFail, alpha=alpha)})
-  # prec_ADR_O <- eventReactive(input$submit, {calc_precision(m=sample_size_total_clinic(), prev=prev_ADR_O, 
-  #                                        n=n_clinics(), N=N(), M=M(),
-  #                                        q=1, q_VNS=1-prev_VS_O, ICC=ICC, DE_info=DE_info, 
-  #                                        labFail=labFail, genoFail=genoFail, alpha=alpha)})
+      # # Function to calculate the precision using FPC and Wald-type intervals
+      # calc_precision <- function(m, prev, c, C, N, q, q_VNS, ICC, DE_info, labFail, genoFail, alpha) {
+      #   # m: per-clinic sample size for VS estimate
+      #   # q: proportion of the total eligible population that belongs to the subgroup of interest
+      #   # q_VNS: proportion of individuals on ART with VNS
+      #   
+      #   m_ADR <- ceiling(m*(1-labFail)*(1-genoFail)*q_VNS)
+      #   M_ADR <- ceiling(N*q*(1-labFail))
+      #   
+      #   DE_clust <- (1-m_ADR*C/M_ADR) + ((1-c/C)*m_ADR - (1-m_ADR*C/M_ADR))*ICC
+      #   k_eff_ADR <- c*m_ADR/(DE_info*DE_clust)
+      #   prec <- qt(1-alpha/2, df=c-1)*sqrt(prev*(1-prev)/k_eff_ADR)
+      #   
+      #   return(round(prec, 3))
+      # }
+      
+      # ### Calculate precision
+      # prec_ADR_DTG <- eventReactive(input$submit, {calc_precision(m=sample_size_DTG_clinic_mod(), prev=prev_ADR_DTG, 
+      #                                          c=n_clinics(), C=C(), N=N(),
+      #                                          q=q_DTG(), q_VNS=1-prev_VS_DTG, ICC=ICC, DE_info=DE_info, 
+      #                                          labFail=labFail, genoFail=genoFail, alpha=alpha)})
+      # prec_ADR_O <- eventReactive(input$submit, {calc_precision(m=sample_size_total_clinic(), prev=prev_ADR_O, 
+      #                                        c=n_clinics(), C=C(), N=N(),
+      #                                        q=1, q_VNS=1-prev_VS_O, ICC=ICC, DE_info=DE_info, 
+      #                                        labFail=labFail, genoFail=genoFail, alpha=alpha)})
   
   # Render output
   output$prec_ADR_DTG <- renderText({
